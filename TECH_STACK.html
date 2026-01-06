@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Technical Stack & Training Setup – Distill-R1</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+    body {
+      font-family: 'Space Mono', monospace;
+      background: white;
+      color: black;
+      max-width: 900px;
+      margin: 60px auto;
+      padding: 0 20px;
+      line-height: 1.7;
+      font-size: 17px;
+    }
+
+    h1 {
+      color: #0066FF;
+      font-size: 2.4em;
+      border-bottom: 4px solid #0066FF;
+      padding-bottom: 15px;
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      color: #0066FF;
+      font-size: 1.8em;
+      margin-top: 3em;
+      border-bottom: 2px solid #0066FF;
+      padding-bottom: 8px;
+    }
+
+    pre {
+      background: #f8f8f8;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 20px 0;
+      border: 1px solid #ccc;
+    }
+
+    .back {
+      margin-top: 80px;
+      padding-top: 30px;
+      border-top: 2px solid #0066FF;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Technical Stack & Training Setup</h1>
+
+<h2>Core Technology Stack</h2>
+
+<ul>
+  <li><strong>Teacher Models</strong>: Gemini 1.5 Flash / Claude 3 Haiku (via API for synthetic generation)</li>
+  <li><strong>Student Model</strong>: Llama 3.1 8B or Mistral 7B</li>
+  <li><strong>Distillation Method</strong>: LoRA/PEFT with knowledge distillation loss</li>
+  <li><strong>Training Framework</strong>: Hugging Face Transformers + PEFT + Accelerate</li>
+  <li><strong>Quantization</strong>: llama.cpp or GPTQ for 4-bit GGUF</li>
+  <li><strong>Inference</strong>: Ollama local server</li>
+  <li><strong>Demo</strong>: Streamlit comparison UI</li>
+</ul>
+
+<h2>Training Setup Guide</h2>
+
+<pre>
+# 1. Install dependencies
+pip install torch transformers peft accelerate bitsandbytes datasets
+
+# 2. Generate synthetic data (example script)
+python generate_synthetic.py --teacher gemini --prompts prompts/support_tickets.json
+
+# 3. Run distillation
+python distill.py --base_model meta-llama/Meta-Llama-3.1-8B \
+  --teacher_data synthetic_responses.json \
+  --lora_rank 16 --epochs 3
+
+# 4. Quantize
+python quantize.py --model_path distilled_model --output distilled-4bit.gguf
+
+# 5. Deploy locally
+ollama create distill-r1 -f Modelfile
+ollama run distill-r1
+</pre>
+
+<h2>Hardware Requirements</h2>
+
+<ul>
+  <li>Training: 24GB+ VRAM GPU recommended (A100 or RTX 4090)</li>
+  <li>Inference: 8GB RAM (CPU) or 4GB VRAM (GPU) for 4-bit model</li>
+</ul>
+
+<h2>Privacy & Security</h2>
+
+<ul>
+  <li>Teacher API calls only during synthetic generation (configurable)</li>
+  <li>All training and inference local</li>
+  <li>No data exfiltration</li>
+  <li>Open-source for audit</li>
+</ul>
+
+<div class="back">
+  <a href="index.html">← Back to Main Design</a>
+</div>
+
+</body>
+</html>
