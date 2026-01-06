@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Distill-R1 – Knowledge Distillation for Enterprise Domain Adaptation</title>
+  <meta name="description" content="Open-source project demonstrating knowledge distillation to create smaller, domain-adapted LLMs from proprietary teachers like Gemini or Claude. Privacy-first, local-first, enterprise-grade.">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+    body {
+      font-family: 'Space Mono', monospace;
+      background: white;
+      color: black;
+      max-width: 900px;
+      margin: 60px auto;
+      padding: 0 20px;
+      line-height: 1.7;
+      font-size: 17px;
+    }
+
+    h1 {
+      color: #0066FF;
+      font-size: 2.4em;
+      border-bottom: 4px solid #0066FF;
+      padding-bottom: 15px;
+      margin-bottom: 40px;
+    }
+
+    h2 {
+      color: #0066FF;
+      font-size: 1.8em;
+      margin-top: 3em;
+      border-bottom: 2px solid #0066FF;
+      padding-bottom: 8px;
+    }
+
+    h3 {
+      color: #0066FF;
+      font-size: 1.4em;
+      margin-top: 2.5em;
+    }
+
+    p, ul, ol, li {
+      margin-bottom: 1.2em;
+    }
+
+    ul, ol {
+      padding-left: 2em;
+    }
+
+    a {
+      color: #0066FF;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 30px 0;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 12px;
+      text-align: left;
+    }
+
+    th {
+      background: #f0f8ff;
+      color: #0066FF;
+      font-weight: 700;
+    }
+
+    .diagram-placeholder {
+      background: #f0f8ff;
+      border: 2px dashed #0066FF;
+      padding: 40px;
+      text-align: center;
+      margin: 40px 0;
+      color: #0066FF;
+      font-style: italic;
+    }
+
+    .links {
+      margin-top: 80px;
+      padding-top: 30px;
+      border-top: 2px solid #0066FF;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Distill-R1 – Knowledge Distillation for Enterprise Domain Adaptation</h1>
+
+<h2>1. Description</h2>
+<p>Distill-R1 is an open-source project demonstrating knowledge distillation to create smaller, high-performing, domain-adapted LLMs from powerful proprietary teachers (Gemini, Claude). It uses synthetic data generation from teacher responses on enterprise-style prompts, then distills that knowledge into an open-source student model (Llama 3.1 8B or Mistral 7B) via LoRA/PEFT. The resulting model is quantized for local deployment via Ollama, delivering near-proprietary performance on internal tasks at dramatically lower cost and with full data privacy. The project includes full training scripts, evaluation suite, before/after comparisons, and local inference demo — a complete end-to-end MLOps showcase for LLM compression and adaptation.</p>
+
+<h2>2. Executive Summary</h2>
+<p>Distill-R1 addresses a critical enterprise LLM challenge: proprietary models like Gemini and Claude deliver excellent performance but are expensive, closed, and introduce privacy risks when processing internal data. Distill-R1 enables organizations to "clone" teacher model capabilities into smaller open-source models tailored to their domain (support tickets, product Q&A, compliance queries). The distilled model runs locally with no data exfiltration, achieving 85–95% of teacher performance at 1/10th the inference cost. The project serves as both a practical distillation framework and a portfolio demonstration of advanced LLM engineering: synthetic data curation, distillation training, rigorous evaluation, and production-ready quantization.</p>
+
+<h2>3. Business Strategy</h2>
+
+<h3>3.1 Strategic Value Proposition</h3>
+<p>Distill-R1 reduces LLM inference costs by 80–90% while maintaining high domain performance and eliminating vendor lock-in. Enterprises gain proprietary-grade intelligence on internal data without ongoing API spend or privacy exposure. Primary value drivers: cost optimization, data sovereignty, performance customization, and reduced dependency on closed models.</p>
+
+<h3>3.2 Regulatory Strategy</h3>
+<p>All training and inference occur locally. Synthetic data generation can be configured to avoid PII. Open-source code enables security review. No external API calls after teacher data collection phase (which can be air-gapped).</p>
+
+<h2>4. Users</h2>
+
+<h3>4.1 Target User Personas</h3>
+<ul>
+  <li><strong>Machine Learning Engineer</strong>: Wants to compress proprietary LLM performance into open models.</li>
+  <li><strong>AI Architect</strong>: Needs cost-effective, private alternatives to Gemini/Claude for internal use cases.</li>
+  <li><strong>DevSecOps Lead</strong>: Requires local LLM deployment for compliance and privacy.</li>
+  <li><strong>Product AI Owner</strong>: Seeks domain-adapted models for support, search, or chat.</li>
+</ul>
+
+<h3>4.2 Lightweight Requirements and User Stories</h3>
+<p>As an MLE, I want to distill Gemini-level performance into a local Llama model for my domain.</p>
+<p>As an architect, I want before/after comparisons to justify switching from proprietary APIs.</p>
+<p>As a DevSecOps lead, I want a quantized model that runs offline with no data leakage.</p>
+
+<h3>4.3 User Journey Map</h3>
+<ol>
+  <li>User defines domain and prompt set (e.g., internal support queries).</li>
+  <li>Distill-R1 generates synthetic responses using teacher model.</li>
+  <li>User runs distillation training on local GPU/CPU.</li>
+  <li>System evaluates student vs teacher on hold-out set.</li>
+  <li>User quantizes and deploys distilled model via Ollama.</li>
+  <li>User runs local demo comparing teacher vs student.</li>
+</ol>
+
+<h2>5. Design and Architecture</h2>
+
+<h3>5.1 Phase A: Vision</h3>
+<p>Enable enterprises to capture proprietary LLM performance in open, local models through knowledge distillation.</p>
+
+<h3>5.2 Phase B: Business</h3>
+<p>Core capabilities: synthetic data generation, distillation training, evaluation suite, quantization, local deployment. Success metrics: student accuracy vs teacher, inference cost reduction, latency on local hardware.</p>
+
+<h3>5.3 Phase C: Information</h3>
+<p>Input: prompt set + teacher responses. State tracks training progress, loss curves, evaluation results.</p>
+
+<h3>5.4 Phase D: Technology</h3>
+<ul>
+  <li>Synthetic Generation: Teacher API calls (Gemini/Claude) with prompt templates</li>
+  <li>Distillation: PEFT/LoRA on Llama 3.1 8B or Mistral 7B</li>
+  <li>Training: Hugging Face Transformers + Accelerate</li>
+  <li>Evaluation: Custom benchmark suite with LLM-as-judge and exact match</li>
+  <li>Quantization: llama.cpp or GPTQ for 4-bit GGUF</li>
+  <li>Deployment: Ollama model server + Streamlit comparison demo</li>
+</ul>
+
+<h2>6. Rollout and Roadmap - Implementation Phases and PI Mapping</h2>
+
+<h3>6.1 Current State</h3>
+<p>MVP with synthetic generation, LoRA distillation, basic evaluation, quantization, local demo.</p>
+
+<h3>6.2 Future State</h3>
+<ul>
+  <li>Multi-teacher ensemble distillation</li>
+  <li>Advanced evaluation (human preference, domain-specific rubrics)</li>
+  <li>Model merging techniques</li>
+  <li>Automated hyperparameter search</li>
+</ul>
+
+<h3>6.3 Agile Delivery - ART</h3>
+<p>PI-1: Synthetic data generation pipeline  
+PI-2: LoRA distillation training  
+PI-3: Evaluation suite and metrics  
+PI-4: Quantization and local deployment  
+PI-5: Comparison dashboard and polish</p>
+
+<h3>6.4 Change Management</h3>
+<p>Open-source with contribution guidelines for new teacher/student combinations and domain templates.</p>
+
+<h3>6.5 Target Value Stream</h3>
+<p>Prompt curation → Teacher response generation → Student training → Evaluation → Quantization → Local deployment</p>
+
+<h2>7. Distillation Pipeline</h2>
+
+<h3>7.1 Core Components</h3>
+<ul>
+  <li><strong>Synthetic Generator</strong>: Creates high-quality teacher responses on domain prompts</li>
+  <li><strong>Distiller</strong>: LoRA fine-tuning with knowledge distillation loss</li>
+  <li><strong>Evaluator</strong>: Multi-metric comparison (accuracy, latency, cost)</li>
+  <li><strong>Quantizer</strong>: Converts to 4-bit GGUF for Ollama</li>
+  <li><strong>Demo App</strong>: Side-by-side teacher vs student inference</li>
+</ul>
+
+<h3>7.2 Training Workflow</h3>
+<p>Teacher generates soft labels → student trained to match probabilities → iterative improvement.</p>
+
+<h3>7.3 Decision Matrix</h3>
+<p>Models scored on weighted metrics (accuracy primary, latency/cost secondary). Top configurations recommended.</p>
+
+<h2>8. Intelligence Platform</h2>
+
+<h3>8.1 Unified Intelligence Stack Architecture</h3>
+<p>Hugging Face ecosystem for training, Ollama for inference. Local execution throughout.</p>
+
+<h3>8.2 The Distillation Component</h3>
+<p>Knowledge distillation with temperature-scaled soft labels and hard label balancing.</p>
+
+<h3>8.3 Observability Layer</h3>
+<p>Training logs, loss curves, evaluation traces.</p>
+
+<h2>9. The Model Lifecycle (MLOps Focus)</h2>
+<p>Distill-R1 follows rigorous MLOps practices in its model lifecycle:</p>
+<ul>
+  <li><strong>Data Curation</strong>: Synthetic generation with prompt templates and quality filters</li>
+  <li><strong>Training</strong>: LoRA on consumer GPU, tracked with MLflow or Weights & Biases local</li>
+  <li><strong>Evaluation</strong>: Multi-metric suite with hold-out set and LLM-as-judge</li>
+  <li><strong>Deployment</strong>: Quantized GGUF for Ollama, versioned model registry</li>
+  <li><strong>Monitoring (Future)</strong>: Concept for drift detection on new queries</li>
+</ul>
+
+<h2>10. Infrastructure</h2>
+
+<h3>10.1 Blueprint</h3>
+<ul>
+  <li>Training: Local GPU (RTX 4090 recommended)</li>
+  <li>Inference: Ollama on CPU or GPU</li>
+  <li>Demo: Streamlit on local or Hugging Face Spaces</li>
+</ul>
+
+<h3>10.2 Security</h3>
+<p>Zero external calls after teacher data collection. All training local. Open code for audit.</p>
+
+<h3>10.3 Governance and Compliance</h3>
+<p>Transparent training data provenance. No PII in synthetic prompts.</p>
+
+<h3>10.4 SRE</h3>
+<p>Local execution with checkpointing and resume capability.</p>
+
+<h2>11. Impact & Outcomes</h2>
+<p>Expected outcomes:</p>
+<ul>
+  <li>85–95% retention of teacher performance</li>
+  <li>80–90% reduction in inference cost</li>
+  <li>Full data privacy and no vendor lock-in</li>
+  <li>Foundation for enterprise-specific LLM customization</li>
+  <li>Portfolio demonstration of advanced LLM engineering and MLOps</li>
+</ul>
+
+<h2>The "We'll Get to This When We're Famous" Section</h2>
+<p>(A cheeky but honest roadmap of features we're deliberately not building in the MVP — because even distilled models can't fix infinite scope.)</p>
+<ul>
+  <li>Multi-teacher ensemble distillation</li>
+  <li>Advanced loss functions (RUMBLE, MiniLLM)</li>
+  <li>Model merging with distilled variants</li>
+  <li>Automated dataset curation from internal logs</li>
+  <li>Hosted enterprise training service</li>
+</ul>
+
+<h2>List of Diagrams & Images</h2>
+<div class="diagram-placeholder">
+  1. Knowledge Distillation Pipeline (Flow diagram: Teacher → Synthetic Data → Student Training → Quantized Model)
+</div>
+
+<div class="diagram-placeholder">
+  2. Before/After Performance Comparison (Bar chart: Teacher vs Student on domain metrics)
+</div>
+
+<div class="diagram-placeholder">
+  3. Cost vs Performance Trade-off (Scatter plot: Model size, latency, accuracy)
+</div>
+
+<div class="diagram-placeholder">
+  4. MLOps Lifecycle for Distillation (Cycle diagram: Data → Train → Evaluate → Deploy → Monitor)
+</div>
+
+<div class="diagram-placeholder">
+  5. Local Inference Demo Concept (Mock UI: Side-by-side teacher vs distilled response)
+</div>
+
+<div class="links">
+  <h2>Supporting Documentation</h2>
+  <ul>
+    <li><a href="SAMPLE_DISTILLATIONS.html">Sample Distillation Results & Comparisons</a></li>
+    <li><a href="EVALUATION_METRICS.html">Detailed Evaluation Methodology</a></li>
+    <li><a href="TECH_STACK.html">Technical Stack & Training Setup</a></li>
+  </ul>
+</div>
+
+</body>
+</html>
