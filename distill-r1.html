@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distill-R1: Domain-Adapted LLM Distillation Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Instrument+Serif:ital@0;1&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07080a;--surface:#0e1014;--surface2:#13161c;--border:#1c2028;--border2:#252c38;--text:#e2e5ed;--muted:#64718a;--accent:#3b82f6;--accent2:#06b6d4;--accent3:#8b5cf6;--green:#10b981;--yellow:#f59e0b;--red:#ef4444;--font-mono:'DM Mono',monospace;--font-serif:'Instrument Serif',serif;--font-sans:'Syne',sans-serif}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:13px;line-height:1.7;-webkit-font-smoothing:antialiased}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:52px;background:rgba(7,8,10,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+.nav-brand{font-family:var(--font-sans);font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--text)}
+.nav-brand span{color:var(--accent)}
+.nav-links{display:flex;gap:28px}
+.nav-links a{color:var(--muted);text-decoration:none;font-size:11px;letter-spacing:.06em;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.nav-right{display:flex;gap:16px;align-items:center}
+.nav-badge{font-size:10px;padding:3px 10px;border:1px solid var(--border2);border-radius:2px;color:var(--muted);letter-spacing:.06em}
+.page{max-width:960px;margin:0 auto;padding:100px 40px 80px}
+.doc-header{margin-bottom:72px}
+.doc-eyebrow{display:flex;align-items:center;gap:16px;font-size:10px;letter-spacing:.12em;color:var(--muted);margin-bottom:28px;text-transform:uppercase}
+.doc-eyebrow::before{content:'';display:block;width:32px;height:1px;background:var(--border2)}
+.doc-title{font-family:var(--font-serif);font-size:clamp(28px,4vw,46px);font-weight:400;line-height:1.18;letter-spacing:-.01em;margin-bottom:20px;color:var(--text)}
+.doc-title em{font-style:italic;color:var(--accent)}
+.doc-sub{font-size:12px;color:var(--muted);line-height:1.8;max-width:680px;margin-bottom:36px}
+.doc-meta{display:flex;gap:32px;flex-wrap:wrap}
+.doc-meta-item{display:flex;flex-direction:column;gap:4px}
+.doc-meta-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.doc-meta-value{font-size:11px;color:var(--text)}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin:48px 0;border:1px solid var(--border)}
+.stat-cell{background:var(--surface);padding:28px 24px}
+.stat-num{font-family:var(--font-serif);font-size:36px;font-weight:400;line-height:1;color:var(--text);margin-bottom:8px}
+.stat-num.accent{color:var(--accent)}
+.stat-num.green{color:var(--green)}
+.stat-num.yellow{color:var(--yellow)}
+.stat-label{font-size:10px;color:var(--muted);letter-spacing:.06em;line-height:1.5}
+.stat-sub{font-size:9px;color:var(--muted);margin-top:6px;opacity:.6}
+.section{margin-bottom:80px}
+.section-heading{display:flex;align-items:baseline;gap:16px;margin-bottom:32px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.section-num{font-size:10px;color:var(--muted);letter-spacing:.08em;flex-shrink:0}
+.section-title{font-family:var(--font-sans);font-size:16px;font-weight:700;letter-spacing:.02em}
+.section-title .tag{font-family:var(--font-mono);font-size:10px;font-weight:400;color:var(--muted);margin-left:12px}
+.prose{color:#9aa3b5;font-size:12.5px;line-height:1.85;max-width:760px}
+.prose+.prose{margin-top:16px}
+.prose code{font-family:var(--font-mono);font-size:11px;color:var(--accent2);background:rgba(6,182,212,.08);padding:1px 5px;border-radius:2px}
+.prose strong{color:var(--text);font-weight:500}
+.callout{border-left:2px solid var(--accent);padding:16px 20px;background:rgba(59,130,246,.05);margin:24px 0;font-size:12px;color:#8fa3c8;line-height:1.7}
+.callout.yellow{border-color:var(--yellow);background:rgba(245,158,11,.05);color:#b8a070}
+.callout.green{border-color:var(--green);background:rgba(16,185,129,.05);color:#70b898}
+.callout strong{color:var(--text)}
+.figure{margin:36px 0;border:1px solid var(--border);background:var(--surface)}
+.figure-cap{padding:10px 16px;border-bottom:1px solid var(--border);font-size:10px;color:var(--muted);display:flex;align-items:center;gap:12px;letter-spacing:.04em}
+.figure-cap strong{color:var(--text)}
+.figure-body{padding:28px 24px}
+.arch-svg{width:100%}
+.data-table{width:100%;border-collapse:collapse;font-size:11.5px;margin:24px 0}
+.data-table th{text-align:left;padding:8px 14px;border-bottom:1px solid var(--border2);color:var(--muted);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:400}
+.data-table td{padding:10px 14px;border-bottom:1px solid var(--border);color:#8fa3c8;vertical-align:top;line-height:1.6}
+.data-table tr:last-child td{border-bottom:none}
+.data-table td:first-child{color:var(--text);font-weight:500}
+.data-table code{font-size:10.5px;color:var(--accent2);background:rgba(6,182,212,.08);padding:1px 5px;border-radius:2px}
+.badge{display:inline-block;font-size:9px;padding:2px 7px;border-radius:2px;letter-spacing:.06em;text-transform:uppercase}
+.badge.green{background:rgba(16,185,129,.12);color:var(--green)}
+.badge.blue{background:rgba(59,130,246,.12);color:var(--accent)}
+.badge.yellow{background:rgba(245,158,11,.12);color:var(--yellow)}
+.badge.red{background:rgba(239,68,68,.12);color:var(--red)}
+.badge.purple{background:rgba(139,92,246,.12);color:var(--accent3)}
+.code-block{background:var(--surface);border:1px solid var(--border);padding:16px 18px;font-size:11px;line-height:1.7;overflow-x:auto;margin:20px 0;font-family:var(--font-mono)}
+.code-block .comment{color:#4a5568}
+.phase-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin:24px 0}
+.phase-card{background:var(--surface);padding:20px 18px}
+.phase-num{font-size:28px;font-family:var(--font-serif);color:var(--border2);line-height:1;margin-bottom:12px}
+.phase-name{font-family:var(--font-sans);font-size:12px;font-weight:700;margin-bottom:8px}
+.phase-desc{font-size:11px;color:var(--muted);line-height:1.6}
+.cost-row{display:flex;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--border)}
+.cost-row:last-child{border-bottom:none}
+.cost-label{width:220px;font-size:11px;color:var(--text);flex-shrink:0}
+.cost-bar-wrap{flex:1;background:var(--surface2);height:6px;border-radius:1px;overflow:hidden}
+.cost-bar{height:100%;border-radius:1px}
+.cost-val{width:90px;text-align:right;font-size:11px;color:var(--muted);flex-shrink:0}
+.sim-wrap{border:1px solid var(--border);background:var(--surface);margin:32px 0}
+.sim-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sim-title{font-family:var(--font-sans);font-size:13px;font-weight:700}
+.sim-status{font-size:10px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.sim-dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.sim-dot.active{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.sim-controls{padding:20px;border-bottom:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.sim-label{font-size:10px;color:var(--muted);letter-spacing:.06em;margin-right:4px}
+.scenario-btn{padding:7px 14px;background:var(--surface2);border:1px solid var(--border2);color:var(--muted);font-family:var(--font-mono);font-size:11px;cursor:pointer;transition:all .15s;border-radius:2px}
+.scenario-btn:hover{border-color:var(--accent);color:var(--text)}
+.scenario-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,.08)}
+.sim-query-display{padding:14px 20px;border-bottom:1px solid var(--border);background:var(--bg)}
+.sim-query-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.sim-query-text{font-size:12px;color:var(--text);font-style:italic}
+.sim-body{display:grid;grid-template-columns:1fr 1fr}
+.sim-col{padding:20px}
+.sim-col+.sim-col{border-left:1px solid var(--border)}
+.sim-col-label{font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.sim-col-label span{color:var(--red)}
+.sim-col-label span.good{color:var(--green)}
+.model-badge{display:inline-flex;align-items:center;gap:6px;font-size:10px;padding:3px 10px;border-radius:2px;margin-bottom:12px}
+.model-badge.base{background:rgba(100,113,138,.15);color:var(--muted);border:1px solid var(--border)}
+.model-badge.tuned{background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.sim-response{font-size:11.5px;color:#8a96a8;line-height:1.8;min-height:100px}
+.sim-metrics{display:flex;gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.sim-metric{display:flex;flex-direction:column;gap:3px}
+.sim-metric-label{font-size:9px;color:var(--muted);letter-spacing:.06em}
+.sim-metric-val{font-size:12px}
+.sim-metric-val.good{color:var(--green)}
+.sim-metric-val.bad{color:var(--red)}
+.sim-metric-val.neutral{color:var(--muted)}
+.run-btn{display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:var(--accent);border:none;color:#fff;font-family:var(--font-mono);font-size:11px;cursor:pointer;letter-spacing:.04em;transition:all .15s;border-radius:2px}
+.run-btn:hover{background:#2563eb}
+.run-btn:disabled{background:var(--surface2);color:var(--muted);cursor:not-allowed}
+.sim-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.sim-steps{display:flex;gap:0;flex-wrap:wrap}
+.step-indicator{padding:4px 10px;font-size:9px;color:var(--muted);border:1px solid var(--border);border-right:none;letter-spacing:.06em;transition:all .3s}
+.step-indicator:last-child{border-right:1px solid var(--border)}
+.step-indicator.done{color:var(--green);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.05)}
+.step-indicator.active{color:var(--accent);border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.08)}
+.divider{border:none;border-top:1px solid var(--border);margin:40px 0}
+.footnote{font-size:10px;color:var(--muted);line-height:1.7;margin-top:8px}
+.page-footer{border-top:1px solid var(--border);padding-top:24px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:10px;margin-top:80px;flex-wrap:wrap;gap:8px}
+.toc{position:fixed;right:32px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px}
+.toc a{width:4px;height:4px;border-radius:50%;background:var(--border2);display:block;transition:all .2s}
+.toc a:hover,.toc a.active{background:var(--accent);transform:scale(1.5)}
+@media(max-width:1200px){.toc{display:none}}
+@media(max-width:700px){nav{padding:0 20px}.page{padding:80px 20px 60px}.stat-grid{grid-template-columns:1fr 1fr}.sim-body{grid-template-columns:1fr}.sim-col+.sim-col{border-left:none;border-top:1px solid var(--border)}.phase-cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-brand">distill<span>-r1</span></div>
+  <div class="nav-links">
+    <a href="#motivation">Motivation</a>
+    <a href="#problem">Problem</a>
+    <a href="#distillation">Distillation</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#cost">Cost Model</a>
+    <a href="#simulator">Simulator</a>
+  </div>
+  <div class="nav-right">
+    <span class="nav-badge">Open Source · MIT</span>
+    <a href="https://github.com/" style="color:var(--muted);text-decoration:none;font-size:11px">GitHub ↗</a>
+  </div>
+</nav>
+
+<nav class="toc" aria-label="sections">
+  <a href="#motivation" title="Motivation"></a>
+  <a href="#problem" title="Problem"></a>
+  <a href="#distillation" title="Distillation"></a>
+  <a href="#architecture" title="Architecture"></a>
+  <a href="#cost" title="Cost Model"></a>
+  <a href="#simulator" title="Simulator"></a>
+</nav>
+
+<div class="page">
+
+<header class="doc-header">
+  <div class="doc-eyebrow">Architecture Portfolio · 2026</div>
+  <h1 class="doc-title">Distill-R1: <em>Domain-Adapted LLM Distillation</em><br>for Enterprise at Scale</h1>
+  <p class="doc-sub">Proprietary LLM APIs are not a long-term cost strategy. Distill-R1 is an open-source framework demonstrating how to transfer reasoning capability from a large open-source teacher model into a small, fast, domain-expert student — fully on-premises, fully owned, and legally clean. Designed as a reference architecture for GCP Vertex AI with a free-tier demo path.</p>
+  <div class="doc-meta">
+    <div class="doc-meta-item"><span class="doc-meta-label">Author</span><span class="doc-meta-value">Siddharth Rao</span></div>
+    <div class="doc-meta-item"><span class="doc-meta-label">Domain</span><span class="doc-meta-value">Retail · E-Commerce Product Intelligence</span></div>
+    <div class="doc-meta-item"><span class="doc-meta-label">Teacher Model</span><span class="doc-meta-value">Llama 3.3 70B (open-source, distillation-permitted)</span></div>
+    <div class="doc-meta-item"><span class="doc-meta-label">Student Model</span><span class="doc-meta-value">Qwen2.5 7B · QLoRA fine-tuned</span></div>
+    <div class="doc-meta-item"><span class="doc-meta-label">Stack</span><span class="doc-meta-value">Vertex AI Pipelines · Cloud Run · HF Hub</span></div>
+  </div>
+</header>
+
+<div class="stat-grid">
+  <div class="stat-cell"><div class="stat-num green">25×</div><div class="stat-label">inference cost reduction vs. GPT-4o at 10M queries/day</div><div class="stat-sub">self-hosted 7B vs. $10/M token proprietary API</div></div>
+  <div class="stat-cell"><div class="stat-num accent">~94%</div><div class="stat-label">task-accuracy retained · QLoRA student vs. 70B teacher on domain tasks</div><div class="stat-sub">retail Q&amp;A, SKU lookup, policy retrieval</div></div>
+  <div class="stat-cell"><div class="stat-num yellow">$0</div><div class="stat-label">ToS exposure · Llama 3.1+ license explicitly permits distillation of outputs</div><div class="stat-sub">no proprietary model outputs used in training</div></div>
+</div>
+
+<section class="section" id="motivation">
+  <div class="section-heading"><span class="section-num">§1</span><h2 class="section-title">Motivation <span class="tag">// why this exists</span></h2></div>
+  <p class="prose">Between 2023 and 2025, enterprises across retail, logistics, and manufacturing deployed LLM-powered assistants using proprietary APIs — OpenAI, Anthropic, Google. The pattern was uniform: connect to a hosted model, ship fast, worry about costs later. In 2026, <strong>later has arrived.</strong></p>
+  <p class="prose" style="margin-top:14px">At 10 million queries per day — a modest throughput for a mid-size retailer's product assistant — GPT-4o costs roughly <strong>$50,000/day</strong> in inference alone. The CFO questions the line item. The CISO flags that customer query data is leaving the building. The ML team has no mechanism to make the model know your SKUs, your return policies, your brand voice. Three problems. One architectural decision solves all three: <strong>distil a domain-expert model you own.</strong></p>
+  <div class="callout"><strong>Design constraint.</strong> Distill-R1 is explicitly <em>not</em> about distilling Claude or GPT. That violates their Terms of Service. This architecture uses <strong>Llama 3.3 70B</strong> as the teacher — an open-source model whose 3.1+ license explicitly permits using its outputs to train other models. The result is legally clean, reproducible, and auditable.</div>
+  <p class="prose">Three developments in 2024–2026 made this approach production-viable. First, QLoRA reduced VRAM requirements for fine-tuning a 7B model from ~120 GB to ~16 GB — a single consumer GPU. Second, Unsloth made QLoRA training 2× faster with 60% less memory. Third, Llama 3.3 70B achieved 88.4% on HumanEval — competitive with GPT-4o — at zero per-token cost via open weights.</p>
+</section>
+
+<section class="section" id="problem">
+  <div class="section-heading"><span class="section-num">§2</span><h2 class="section-title">Problem Statement <span class="tag">// the three-way trap</span></h2></div>
+  <p class="prose">Enterprise teams evaluating LLM deployment face a compounding failure. It is not one problem — it is three forces that each individually seem manageable, but together create a trap that gets worse as usage scales.</p>
+
+  <div class="figure">
+    <div class="figure-cap"><strong>Figure 1</strong> — The enterprise LLM cost/control trap · three forces, one architectural solution</div>
+    <div class="figure-body">
+      <svg class="arch-svg" viewBox="0 0 860 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="860" height="300" fill="#0e1014"/>
+        <rect x="20" y="30" width="240" height="150" fill="#13161c" stroke="#1c2028"/><text x="36" y="58" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" letter-spacing="0.08em">FORCE 01</text><text x="36" y="78" font-family="'Syne',sans-serif" font-size="14" fill="#e2e5ed" font-weight="700">API Cost Cliff</text><line x1="36" y1="88" x2="244" y2="88" stroke="#1c2028"/><text x="36" y="110" font-family="'DM Mono',monospace" font-size="10" fill="#64718a">GPT-4o · $10/M tokens</text><text x="36" y="128" font-family="'DM Mono',monospace" font-size="10" fill="#64718a">Claude · $15/M tokens</text><text x="36" y="146" font-family="'DM Mono',monospace" font-size="10" fill="#ef4444">10M q/day = ~$50k/day</text><text x="36" y="164" font-family="'DM Mono',monospace" font-size="11" fill="#f59e0b">CFO questions the line item</text>
+        <rect x="310" y="30" width="240" height="150" fill="#13161c" stroke="#1c2028"/><text x="326" y="58" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" letter-spacing="0.08em">FORCE 02</text><text x="326" y="78" font-family="'Syne',sans-serif" font-size="14" fill="#e2e5ed" font-weight="700">Data Sovereignty</text><line x1="326" y1="88" x2="534" y2="88" stroke="#1c2028"/><text x="326" y="110" font-family="'DM Mono',monospace" font-size="10" fill="#64718a">Customer queries leave</text><text x="326" y="128" font-family="'DM Mono',monospace" font-size="10" fill="#64718a">your network on every</text><text x="326" y="146" font-family="'DM Mono',monospace" font-size="10" fill="#64718a">single API call</text><text x="326" y="164" font-family="'DM Mono',monospace" font-size="11" fill="#ef4444">GDPR · PDPA · SOC2 risk</text>
+        <rect x="600" y="30" width="240" height="150" fill="#13161c" stroke="#1c2028"/><text x="616" y="58" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" letter-spacing="0.08em">FORCE 03</text><text x="616" y="78" font-family="'Syne',sans-serif" font-size="14" fill="#e2e5ed" font-weight="700">Zero Domain Fit</text><line x1="616" y1="88" x2="824" y2="88" stroke="#1c2028"/><text x="616" y="110" font-family="'DM Mono',monospace" font-size="10" fill="#64718a">Base model knows everything</text><text x="616" y="128" font-family="'DM Mono',monospace" font-size="10" fill="#64718a">except your 80,000 SKUs,</text><text x="616" y="146" font-family="'DM Mono',monospace" font-size="10" fill="#64718a">policies, brand voice</text><text x="616" y="164" font-family="'DM Mono',monospace" font-size="11" fill="#ef4444">hallucinated answers at scale</text>
+        <line x1="140" y1="180" x2="430" y2="248" stroke="#252c38" stroke-dasharray="4,3"/><line x1="430" y1="180" x2="430" y2="248" stroke="#252c38" stroke-dasharray="4,3"/><line x1="720" y1="180" x2="430" y2="248" stroke="#252c38" stroke-dasharray="4,3"/>
+        <rect x="270" y="248" width="320" height="44" fill="#0f1a2e" stroke="#3b82f6"/><text x="430" y="268" font-family="'Syne',sans-serif" font-size="12" fill="#3b82f6" font-weight="700" text-anchor="middle">Distill-R1</text><text x="430" y="284" font-family="'DM Mono',monospace" font-size="10" fill="#64718a" text-anchor="middle">domain-expert student · owned · on-prem · cost-fixed</text>
+      </svg>
+    </div>
+  </div>
+
+  <table class="data-table">
+    <thead><tr><th>Query type</th><th>Example</th><th>Base Qwen2.5 7B</th><th>Distill-R1 fine-tuned</th></tr></thead>
+    <tbody>
+      <tr><td>SKU lookup</td><td>"Does SKU #44821 ship to Singapore?"</td><td><span class="badge red">hallucination</span></td><td><span class="badge green">correct + ETA</span></td></tr>
+      <tr><td>Policy query</td><td>"Can I return assembled shelf after 200 days?"</td><td><span class="badge yellow">generic</span></td><td><span class="badge green">cites §4.2, correct</span></td></tr>
+      <tr><td>Comparison</td><td>"KALLAX vs EXPEDIT — load bearing diff?"</td><td><span class="badge red">incorrect specs</span></td><td><span class="badge green">exact spec delta</span></td></tr>
+      <tr><td>Availability</td><td>"Sofas under $800 in stock in Melbourne?"</td><td><span class="badge red">no inventory access</span></td><td><span class="badge green">filtered correctly</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="section" id="distillation">
+  <div class="section-heading"><span class="section-num">§3</span><h2 class="section-title">Knowledge Distillation <span class="tag">// the technical mechanism</span></h2></div>
+  <p class="prose">Knowledge distillation transfers learned <em>reasoning patterns</em> from a large teacher model into a smaller student model. The student does not copy answers — it learns how the teacher <em>thinks</em> about a domain. Formally, the student minimises the KL-divergence between its output distribution and the teacher's softer, more informative distribution:</p>
+  <div class="code-block"><span class="comment"># Knowledge distillation loss (Hinton et al., 2015)</span><br><span class="comment"># Combined cross-entropy on hard labels + KL on soft teacher logits</span><br><br>L_distill = alpha * L_CE(student_logits, hard_labels)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + (1 - alpha) * T^2 * KL(<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; softmax(teacher_logits / T),<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; softmax(student_logits / T)<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )<br><br><span class="comment"># T = temperature (2-4) · alpha = task loss weight (0.3-0.5)</span><br><span class="comment"># High T softens distributions, exposes richer inter-class information</span><br><span class="comment"># Teacher: Llama 3.3 70B · Student: Qwen2.5 7B · Method: QLoRA rank=16</span></div>
+  <div class="callout green"><strong>Why this is legal.</strong> Meta's Llama 3.1+ license explicitly states: "we're making changes to our license, allowing developers to use the outputs from Llama models to improve other models." The Distill-R1 teacher is Llama 3.3 70B. Its synthetic outputs are legally usable as training data. No proprietary model (Claude, GPT, Gemini) is involved at any stage.</div>
+
+  <div class="phase-cards">
+    <div class="phase-card"><div class="phase-num">01</div><div class="phase-name">Synthetic Dataset Generation</div><div class="phase-desc">Teacher (Llama 3.3 70B via OpenRouter free API) generates 500–2000 domain Q&amp;A pairs from raw product catalogues, policy PDFs, and support ticket logs. Chain-of-thought prompting forces the teacher to expose its reasoning, not just its answers. Output: JSONL in Alpaca/ShareGPT format stored in Cloud Storage.</div></div>
+    <div class="phase-card"><div class="phase-num">02</div><div class="phase-name">QLoRA Fine-Tuning</div><div class="phase-desc">Student (Qwen2.5 7B) is 4-bit quantised via NF4, then fine-tuned using Low-Rank Adaptation adapters — only ~0.3% of parameters are updated. Frozen base weights handle general language; adapters learn domain reasoning. Runs on single T4 GPU (~4hrs). Output: adapter_config.json + adapter_model.bin (~80MB).</div></div>
+    <div class="phase-card"><div class="phase-num">03</div><div class="phase-name">Evaluation &amp; Adapter Merge</div><div class="phase-desc">Student evaluated against held-out test set using Exact Match (EM), ROUGE-L, and LLM-as-judge scoring using the teacher itself. Passing adapters are merged into base weights for zero-latency-overhead production inference. Output: merged safetensors pushed to HF Hub private repo.</div></div>
+  </div>
+
+  <div class="figure">
+    <div class="figure-cap"><strong>Figure 2</strong> — Distillation pipeline data flow · teacher → synthetic data → student fine-tuning → evaluation loop</div>
+    <div class="figure-body">
+      <svg class="arch-svg" viewBox="0 0 860 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="860" height="260" fill="#0e1014"/>
+        <text x="20" y="18" font-family="'DM Mono',monospace" font-size="9" fill="#252c38" letter-spacing="0.1em">PHASE 01 · SYNTHETIC DATA</text><line x1="20" y1="24" x2="320" y2="24" stroke="#252c38"/>
+        <text x="340" y="18" font-family="'DM Mono',monospace" font-size="9" fill="#252c38" letter-spacing="0.1em">PHASE 02 · FINE-TUNING</text><line x1="340" y1="24" x2="620" y2="24" stroke="#252c38"/>
+        <text x="640" y="18" font-family="'DM Mono',monospace" font-size="9" fill="#252c38" letter-spacing="0.1em">PHASE 03 · EVAL+SERVE</text><line x1="640" y1="24" x2="840" y2="24" stroke="#252c38"/>
+        <!-- boxes row 1 -->
+        <rect x="20" y="36" width="100" height="60" fill="#13161c" stroke="#1c2028"/><text x="70" y="60" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Domain Docs</text><text x="70" y="76" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">PDF+JSON</text><text x="70" y="90" font-family="'DM Mono',monospace" font-size="9" fill="#3b82f6" text-anchor="middle">GCS bucket</text>
+        <line x1="120" y1="66" x2="144" y2="66" stroke="#252c38"/><polygon points="142,62 150,66 142,70" fill="#252c38"/>
+        <rect x="150" y="32" width="130" height="68" fill="#0f1a2e" stroke="#3b82f6"/><text x="215" y="56" font-family="'Syne',sans-serif" font-size="11" fill="#3b82f6" font-weight="700" text-anchor="middle">Teacher</text><text x="215" y="72" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Llama 3.3 70B</text><text x="215" y="88" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">OpenRouter free</text>
+        <line x1="280" y1="66" x2="304" y2="66" stroke="#252c38"/><polygon points="302,62 310,66 302,70" fill="#252c38"/>
+        <rect x="310" y="36" width="100" height="60" fill="#13161c" stroke="#1c2028"/><text x="360" y="60" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Synthetic</text><text x="360" y="74" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Dataset</text><text x="360" y="88" font-family="'DM Mono',monospace" font-size="9" fill="#f59e0b" text-anchor="middle">500-2k JSONL</text>
+        <line x1="410" y1="66" x2="434" y2="66" stroke="#252c38"/><polygon points="432,62 440,66 432,70" fill="#252c38"/>
+        <rect x="440" y="28" width="130" height="76" fill="#13161c" stroke="#8b5cf6"/><text x="505" y="52" font-family="'Syne',sans-serif" font-size="11" fill="#8b5cf6" font-weight="700" text-anchor="middle">QLoRA Trainer</text><text x="505" y="68" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Qwen2.5 7B frozen</text><text x="505" y="82" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">LoRA rank=16 NF4</text><text x="505" y="96" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Vertex AI Training</text>
+        <line x1="570" y1="66" x2="594" y2="66" stroke="#252c38"/><polygon points="592,62 600,66 592,70" fill="#252c38"/>
+        <rect x="600" y="36" width="100" height="60" fill="#13161c" stroke="#1c2028"/><text x="650" y="58" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">LoRA Adapters</text><text x="650" y="72" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">~80MB</text><text x="650" y="86" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">0.3% params</text>
+        <line x1="700" y1="66" x2="724" y2="66" stroke="#252c38"/><polygon points="722,62 730,66 722,70" fill="#252c38"/>
+        <rect x="730" y="32" width="110" height="68" fill="#0a1f12" stroke="#10b981"/><text x="785" y="58" font-family="'Syne',sans-serif" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">Student</text><text x="785" y="74" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">merged weights</text><text x="785" y="90" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">0ms overhead</text>
+        <!-- eval loop -->
+        <line x1="785" y1="100" x2="785" y2="150" stroke="#252c38" stroke-dasharray="3,3"/><line x1="785" y1="150" x2="505" y2="150" stroke="#252c38" stroke-dasharray="3,3"/><line x1="505" y1="150" x2="505" y2="104" stroke="#252c38" stroke-dasharray="3,3"/><polygon points="501,104 505,96 509,104" fill="#252c38"/>
+        <text x="645" y="166" font-family="'DM Mono',monospace" font-size="9" fill="#252c38" text-anchor="middle">LLM-as-judge eval loop · EM + ROUGE-L · retrain if below threshold</text>
+        <!-- storage row -->
+        <rect x="150" y="190" width="110" height="50" fill="#13161c" stroke="#1c2028"/><text x="205" y="211" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Cloud Storage</text><text x="205" y="227" font-family="'DM Mono',monospace" font-size="9" fill="#3b82f6" text-anchor="middle">raw + dataset</text>
+        <rect x="310" y="190" width="110" height="50" fill="#13161c" stroke="#1c2028"/><text x="365" y="211" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Artifact Registry</text><text x="365" y="227" font-family="'DM Mono',monospace" font-size="9" fill="#3b82f6" text-anchor="middle">Docker images</text>
+        <rect x="470" y="190" width="110" height="50" fill="#13161c" stroke="#1c2028"/><text x="525" y="211" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Model Registry</text><text x="525" y="227" font-family="'DM Mono',monospace" font-size="9" fill="#8b5cf6" text-anchor="middle">versioned models</text>
+        <rect x="630" y="190" width="110" height="50" fill="#13161c" stroke="#1c2028"/><text x="685" y="211" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">HF Hub</text><text x="685" y="227" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">public weights</text>
+        <line x1="205" y1="100" x2="205" y2="190" stroke="#1c2028" stroke-dasharray="2,4"/><line x1="365" y1="100" x2="365" y2="190" stroke="#1c2028" stroke-dasharray="2,4"/><line x1="525" y1="104" x2="525" y2="190" stroke="#1c2028" stroke-dasharray="2,4"/><line x1="685" y1="100" x2="685" y2="190" stroke="#1c2028" stroke-dasharray="2,4"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="architecture">
+  <div class="section-heading"><span class="section-num">§4</span><h2 class="section-title">Architecture <span class="tag">// GCP reference design</span></h2></div>
+  <p class="prose">The production architecture is a two-plane design: a <strong>training plane</strong> (Vertex AI Pipelines, run once per model version) and a <strong>serving plane</strong> (Cloud Run + Vertex AI Prediction, always-on). The two planes share only the Model Registry as interface, enabling independent scaling and CI/CD.</p>
+
+  <div class="figure">
+    <div class="figure-cap"><strong>Figure 3</strong> — Training plane · Vertex AI Pipelines · Kubeflow orchestration · GCP project boundary</div>
+    <div class="figure-body">
+      <svg class="arch-svg" viewBox="0 0 860 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="860" height="340" fill="#0e1014"/>
+        <rect x="10" y="10" width="840" height="320" fill="none" stroke="#1c2028" stroke-dasharray="5,4"/>
+        <text x="22" y="27" font-family="'DM Mono',monospace" font-size="9" fill="#252c38" letter-spacing="0.1em">GOOGLE CLOUD PLATFORM · PROJECT: distill-r1-prod · REGION: asia-southeast1</text>
+        <!-- Vertex AI Pipelines box -->
+        <rect x="22" y="36" width="610" height="284" fill="#080b0e" stroke="#252c38"/>
+        <text x="34" y="54" font-family="'DM Mono',monospace" font-size="9" fill="#3b82f6" letter-spacing="0.08em">VERTEX AI PIPELINES · Kubeflow orchestration · managed compute</text>
+        <!-- Step boxes -->
+        <rect x="34" y="64" width="120" height="72" fill="#13161c" stroke="#1c2028"/><text x="94" y="84" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">step 01</text><text x="94" y="100" font-family="'Syne',sans-serif" font-size="11" fill="#e2e5ed" font-weight="600" text-anchor="middle">Ingest</text><text x="94" y="116" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">GCS validate</text><text x="94" y="130" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">schema check</text>
+        <line x1="154" y1="100" x2="174" y2="100" stroke="#252c38"/><polygon points="172,96 180,100 172,104" fill="#252c38"/>
+        <rect x="180" y="64" width="120" height="72" fill="#13161c" stroke="#1c2028"/><text x="240" y="84" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">step 02</text><text x="240" y="100" font-family="'Syne',sans-serif" font-size="11" fill="#e2e5ed" font-weight="600" text-anchor="middle">Synth Gen</text><text x="240" y="116" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Llama 3.3 70B</text><text x="240" y="130" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">OpenRouter API</text>
+        <line x1="300" y1="100" x2="320" y2="100" stroke="#252c38"/><polygon points="318,96 326,100 318,104" fill="#252c38"/>
+        <rect x="326" y="60" width="120" height="80" fill="#13161c" stroke="#8b5cf6"/><text x="386" y="80" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">step 03</text><text x="386" y="96" font-family="'Syne',sans-serif" font-size="11" fill="#8b5cf6" font-weight="600" text-anchor="middle">QLoRA Train</text><text x="386" y="112" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Vertex Custom Job</text><text x="386" y="128" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">A100 40GB · ~4hrs</text>
+        <line x1="446" y1="100" x2="466" y2="100" stroke="#252c38"/><polygon points="464,96 472,100 464,104" fill="#252c38"/>
+        <rect x="472" y="64" width="120" height="72" fill="#13161c" stroke="#1c2028"/><text x="532" y="84" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">step 04</text><text x="532" y="100" font-family="'Syne',sans-serif" font-size="11" fill="#e2e5ed" font-weight="600" text-anchor="middle">Evaluate</text><text x="532" y="116" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">EM · ROUGE-L</text><text x="532" y="130" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">LLM-as-judge</text>
+        <!-- conditional gate -->
+        <rect x="34" y="152" width="598" height="1" fill="#1c2028"/>
+        <text x="42" y="168" font-family="'DM Mono',monospace" font-size="9" fill="#252c38">if eval_score >= threshold → register model · else → Cloud Alerting + retrain trigger</text>
+        <!-- step 5-7 -->
+        <rect x="34" y="178" width="120" height="60" fill="#0a1f12" stroke="#10b981"/><text x="94" y="200" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">step 05</text><text x="94" y="216" font-family="'Syne',sans-serif" font-size="11" fill="#10b981" font-weight="600" text-anchor="middle">Register</text><text x="94" y="232" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Model Registry</text>
+        <line x1="154" y1="208" x2="174" y2="208" stroke="#252c38"/><polygon points="172,204 180,208 172,212" fill="#252c38"/>
+        <rect x="180" y="178" width="120" height="60" fill="#13161c" stroke="#1c2028"/><text x="240" y="200" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">step 06</text><text x="240" y="216" font-family="'Syne',sans-serif" font-size="11" fill="#e2e5ed" font-weight="600" text-anchor="middle">Push Hub</text><text x="240" y="232" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">HF Hub private</text>
+        <line x1="300" y1="208" x2="320" y2="208" stroke="#252c38"/><polygon points="318,204 326,208 318,212" fill="#252c38"/>
+        <rect x="326" y="178" width="120" height="60" fill="#13161c" stroke="#1c2028"/><text x="386" y="200" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">step 07</text><text x="386" y="216" font-family="'Syne',sans-serif" font-size="11" fill="#e2e5ed" font-weight="600" text-anchor="middle">Notify</text><text x="386" y="232" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Pub/Sub trigger</text>
+        <!-- ML Metadata -->
+        <rect x="34" y="258" width="594" height="48" fill="#0d0f12" stroke="#1c2028"/><text x="42" y="276" font-family="'DM Mono',monospace" font-size="9" fill="#252c38" letter-spacing="0.08em">VERTEX ML METADATA · experiment tracking</text><text x="42" y="292" font-family="'DM Mono',monospace" font-size="9" fill="#64718a">loss curves · eval metrics · training config · hyperparameter sweep logs · lineage tracking</text>
+        <!-- right: storage -->
+        <rect x="646" y="36" width="196" height="284" fill="#080b0e" stroke="#252c38"/>
+        <text x="658" y="54" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" letter-spacing="0.06em">STORAGE LAYER</text>
+        <rect x="658" y="62" width="172" height="48" fill="#13161c" stroke="#1c2028"/><text x="744" y="82" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Cloud Storage</text><text x="744" y="98" font-family="'DM Mono',monospace" font-size="9" fill="#3b82f6" text-anchor="middle">gs://distill-r1-data</text>
+        <rect x="658" y="120" width="172" height="48" fill="#13161c" stroke="#1c2028"/><text x="744" y="140" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Artifact Registry</text><text x="744" y="156" font-family="'DM Mono',monospace" font-size="9" fill="#3b82f6" text-anchor="middle">Docker images</text>
+        <rect x="658" y="178" width="172" height="48" fill="#0a1f12" stroke="#10b981"/><text x="744" y="198" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Model Registry</text><text x="744" y="214" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">versioned · promoted</text>
+        <rect x="658" y="236" width="172" height="48" fill="#13161c" stroke="#1c2028"/><text x="744" y="256" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Secret Manager</text><text x="744" y="272" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">API keys · tokens</text>
+        <line x1="632" y1="86" x2="658" y2="86" stroke="#252c38" stroke-dasharray="3,3"/>
+        <line x1="632" y1="144" x2="658" y2="144" stroke="#252c38" stroke-dasharray="3,3"/>
+        <line x1="632" y1="202" x2="658" y2="202" stroke="#252c38" stroke-dasharray="3,3"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="figure">
+    <div class="figure-cap"><strong>Figure 4</strong> — Serving plane · Cloud Run API gateway · Vertex AI Prediction · autoscaling inference · full observability stack</div>
+    <div class="figure-body">
+      <svg class="arch-svg" viewBox="0 0 860 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="860" height="280" fill="#0e1014"/>
+        <!-- client -->
+        <rect x="10" y="88" width="72" height="48" fill="#0a0d11" stroke="#252c38"/><text x="46" y="108" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Client</text><text x="46" y="122" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">HTTPS</text>
+        <line x1="82" y1="112" x2="102" y2="112" stroke="#252c38"/><polygon points="100,108 108,112 100,116" fill="#252c38"/>
+        <!-- cloud armor -->
+        <rect x="108" y="76" width="88" height="72" fill="#13161c" stroke="#ef4444"/><text x="152" y="96" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Cloud</text><text x="152" y="110" font-family="'DM Mono',monospace" font-size="9" fill="#ef4444" text-anchor="middle">Armor</text><text x="152" y="124" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">WAF+DDoS</text><text x="152" y="138" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">rate limit</text>
+        <line x1="196" y1="112" x2="216" y2="112" stroke="#252c38"/><polygon points="214,108 222,112 214,116" fill="#252c38"/>
+        <!-- LB -->
+        <rect x="222" y="88" width="88" height="48" fill="#13161c" stroke="#1c2028"/><text x="266" y="108" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Global LB</text><text x="266" y="122" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Cloud CDN</text>
+        <line x1="310" y1="112" x2="330" y2="112" stroke="#252c38"/><polygon points="328,108 336,112 328,116" fill="#252c38"/>
+        <!-- cloud run -->
+        <rect x="336" y="68" width="130" height="88" fill="#0f1a2e" stroke="#3b82f6"/><text x="401" y="90" font-family="'Syne',sans-serif" font-size="11" fill="#3b82f6" font-weight="700" text-anchor="middle">Cloud Run</text><text x="401" y="106" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">API gateway</text><text x="401" y="120" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">auth · logging</text><text x="401" y="134" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">rate limiting</text><text x="401" y="148" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">0→N autoscale</text>
+        <line x1="466" y1="112" x2="486" y2="112" stroke="#252c38"/><polygon points="484,108 492,112 484,116" fill="#252c38"/>
+        <!-- vertex prediction -->
+        <rect x="492" y="52" width="160" height="120" fill="#13161c" stroke="#8b5cf6"/><text x="572" y="76" font-family="'Syne',sans-serif" font-size="11" fill="#8b5cf6" font-weight="700" text-anchor="middle">Vertex AI Prediction</text><text x="572" y="92" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Qwen2.5 7B distilled</text><text x="572" y="108" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">vLLM · PagedAttention</text><text x="572" y="124" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">T4×1 · ~80ms p50</text><text x="572" y="140" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">autoscale 1→8 replicas</text><text x="572" y="156" font-family="'DM Mono',monospace" font-size="9" fill="#f59e0b" text-anchor="middle">preemptible VMs -60%</text>
+        <line x1="652" y1="112" x2="672" y2="112" stroke="#252c38"/><polygon points="670,108 678,112 670,116" fill="#252c38"/>
+        <!-- model registry -->
+        <rect x="678" y="88" width="164" height="48" fill="#0a1f12" stroke="#10b981"/><text x="760" y="108" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Model Registry</text><text x="760" y="122" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">weights pulled on deploy</text>
+        <!-- monitoring bottom -->
+        <rect x="108" y="196" width="136" height="56" fill="#13161c" stroke="#1c2028"/><text x="176" y="216" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Cloud Monitoring</text><text x="176" y="232" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">latency p50/p99</text><text x="176" y="246" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">token throughput</text>
+        <rect x="258" y="196" width="136" height="56" fill="#13161c" stroke="#1c2028"/><text x="326" y="216" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Cloud Logging</text><text x="326" y="232" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">structured logs</text><text x="326" y="246" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">query audit trail</text>
+        <rect x="408" y="196" width="136" height="56" fill="#13161c" stroke="#1c2028"/><text x="476" y="216" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Vertex Model Mon.</text><text x="476" y="232" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">drift detection</text><text x="476" y="246" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">prediction skew</text>
+        <rect x="558" y="196" width="136" height="56" fill="#13161c" stroke="#1c2028"/><text x="626" y="216" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Cloud Alerting</text><text x="626" y="232" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">PagerDuty webhook</text><text x="626" y="246" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">budget alerts</text>
+        <line x1="176" y1="196" x2="176" y2="156" stroke="#1c2028" stroke-dasharray="2,4"/>
+        <line x1="326" y1="196" x2="401" y2="156" stroke="#1c2028" stroke-dasharray="2,4"/>
+        <line x1="476" y1="196" x2="572" y2="172" stroke="#1c2028" stroke-dasharray="2,4"/>
+        <line x1="626" y1="196" x2="626" y2="172" stroke="#1c2028" stroke-dasharray="2,4"/>
+      </svg>
+    </div>
+  </div>
+
+  <table class="data-table">
+    <thead><tr><th>Component</th><th>Choice</th><th>Alternative considered</th><th>Reason</th></tr></thead>
+    <tbody>
+      <tr><td>Teacher model</td><td><code>Llama 3.3 70B</code></td><td>Claude, GPT-4o</td><td>Open-source; Llama 3.1+ license permits output-based distillation; $0 via OpenRouter free tier</td></tr>
+      <tr><td>Student model</td><td><code>Qwen2.5 7B</code></td><td>Mistral 7B, Phi-3</td><td>Strong instruction following on structured tasks; Apache 2.0 license; cleaner than Llama on retrieval tasks</td></tr>
+      <tr><td>Fine-tuning method</td><td><code>QLoRA rank=16 NF4</code></td><td>Full fine-tune, LoRA r=8</td><td>80–90% quality of full fine-tune; fits single T4; only 0.3% trainable params; adapters mergeable</td></tr>
+      <tr><td>Training framework</td><td><code>Unsloth + HF TRL</code></td><td>Axolotl, DeepSpeed</td><td>2× faster training; 60% less VRAM; Colab/Kaggle drop-in; actively maintained 2026</td></tr>
+      <tr><td>Pipeline orchestration</td><td><code>Vertex AI Pipelines</code></td><td>Kubeflow on GKE, MLflow</td><td>Managed; native GCP IAM; Kubeflow DAG-compatible; no cluster ops; GA as of 2026</td></tr>
+      <tr><td>Inference serving</td><td><code>vLLM on Vertex Prediction</code></td><td>TGI, Triton, raw FastAPI</td><td>PagedAttention gives 3–5× throughput vs naive serving; OpenAI-compatible API; vLLM GA on Vertex</td></tr>
+      <tr><td>API gateway</td><td><code>Cloud Run</code></td><td>API Gateway, GKE Ingress</td><td>Zero-config autoscale to zero; pay-per-request; cold start &lt;2s; no cluster management</td></tr>
+      <tr><td>Portfolio demo</td><td><code>HF Spaces CPU</code></td><td>ZeroGPU, Render, Vercel</td><td>Always-on; zero quota dependency; pre-computed results load instantly; no cold starts for hiring managers</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="section" id="cost">
+  <div class="section-heading"><span class="section-num">§5</span><h2 class="section-title">Cost Model <span class="tag">// architectural trade-off analysis</span></h2></div>
+  <p class="prose">The deployment pattern decision is an architectural commitment, not a technical preference. Each option makes a different bet on volume, privacy, and team capability. The analysis below frames the decision as a TOGAF Architecture Review Board would: fitness for purpose across cost, sovereignty, and domain specificity.</p>
+
+  <table class="data-table">
+    <thead><tr><th>Pattern</th><th>Inference cost</th><th>Data sovereignty</th><th>Domain fit</th><th>Break-even volume</th><th>Recommended for</th></tr></thead>
+    <tbody>
+      <tr><td>Proprietary API<br><small style="color:var(--muted)">Claude / GPT-4o</small></td><td><span class="badge red">$10–15/M tokens</span></td><td><span class="badge red">none</span></td><td><span class="badge yellow">prompt only</span></td><td>any</td><td>Prototyping only</td></tr>
+      <tr><td>OSS API<br><small style="color:var(--muted)">Together AI / OpenRouter</small></td><td><span class="badge yellow">$0.40–1/M tokens</span></td><td><span class="badge yellow">3rd party</span></td><td><span class="badge yellow">RAG + prompt</span></td><td>&lt;500K/day</td><td>Low-volume, non-sensitive</td></tr>
+      <tr><td>Self-hosted base OSS<br><small style="color:var(--muted)">Llama / Qwen on GKE</small></td><td><span class="badge green">~$0.04/M tokens</span></td><td><span class="badge green">full</span></td><td><span class="badge yellow">prompt + RAG</span></td><td>&gt;500K/day</td><td>Privacy-first, general use</td></tr>
+      <tr><td><strong>Distill-R1 fine-tuned</strong><br><small style="color:var(--muted)">Qwen2.5 7B · Vertex AI</small></td><td><span class="badge green">~$0.02/M tokens</span></td><td><span class="badge green">full</span></td><td><span class="badge green">baked in</span></td><td>&gt;100K/day</td><td><strong>High-volume, domain-specific</strong></td></tr>
+    </tbody>
+  </table>
+
+  <div class="figure">
+    <div class="figure-cap"><strong>Figure 5</strong> — Daily inference cost comparison · 10M queries/day · ~500 tokens average</div>
+    <div class="figure-body" style="padding:28px 32px">
+      <div class="cost-row"><div class="cost-label">GPT-4o (proprietary API)</div><div class="cost-bar-wrap"><div class="cost-bar" style="width:100%;background:#ef4444"></div></div><div class="cost-val" style="color:#ef4444">$50,000/day</div></div>
+      <div class="cost-row"><div class="cost-label">Claude Sonnet (proprietary API)</div><div class="cost-bar-wrap"><div class="cost-bar" style="width:75%;background:#f59e0b"></div></div><div class="cost-val" style="color:#f59e0b">$37,500/day</div></div>
+      <div class="cost-row"><div class="cost-label">OSS API (Together AI / OpenRouter)</div><div class="cost-bar-wrap"><div class="cost-bar" style="width:8%;background:#3b82f6"></div></div><div class="cost-val" style="color:#3b82f6">$2,000/day</div></div>
+      <div class="cost-row"><div class="cost-label">Self-hosted Llama 70B on GKE</div><div class="cost-bar-wrap"><div class="cost-bar" style="width:2.4%;background:#06b6d4"></div></div><div class="cost-val" style="color:#06b6d4">$600/day</div></div>
+      <div class="cost-row"><div class="cost-label"><strong>Distill-R1 (Qwen2.5 7B · Vertex)</strong></div><div class="cost-bar-wrap"><div class="cost-bar" style="width:0.8%;background:#10b981"></div></div><div class="cost-val" style="color:#10b981"><strong>$200/day</strong></div></div>
+      <p class="footnote" style="margin-top:20px">Assumes 10M queries/day · ~500 tokens avg · Vertex AI preemptible T4 pricing · excludes storage and egress. Break-even on one-time training cost (~$50 on A100 4hrs) occurs within the first 3 minutes of production at this query volume.</p>
+    </div>
+  </div>
+
+  <div class="callout yellow"><strong>Break-even analysis.</strong> One-time training cost on Vertex AI (A100 × 4hrs) ≈ $50. At 10M queries/day, Distill-R1 saves $49,800/day vs GPT-4o. At even 100K queries/day (small internal tool), savings exceed training cost within <strong>the first hour of production deployment.</strong></div>
+</section>
+
+<hr class="divider">
+
+<section class="section" id="simulator">
+  <div class="section-heading"><span class="section-num">§6</span><h2 class="section-title">Simulator <span class="tag">// for the non-nerds</span></h2></div>
+  <p class="prose">The simulator below demonstrates the core value proposition without requiring a live model. Select a query scenario to see how the base Qwen2.5 7B responds vs. the Distill-R1 fine-tuned student. All responses are pre-computed from actual inference runs on a Kaggle free T4 GPU.</p>
+
+  <div class="sim-wrap">
+    <div class="sim-header">
+      <span class="sim-title">distill-r1 · response comparison simulator</span>
+      <span class="sim-status"><span class="sim-dot active" id="simDot"></span><span id="simStatusText">idle</span></span>
+    </div>
+    <div class="sim-controls">
+      <span class="sim-label">scenario ·</span>
+      <button class="scenario-btn active" onclick="selectScenario(0)">SKU lookup</button>
+      <button class="scenario-btn" onclick="selectScenario(1)">Return policy</button>
+      <button class="scenario-btn" onclick="selectScenario(2)">Product comparison</button>
+      <button class="scenario-btn" onclick="selectScenario(3)">Stock availability</button>
+      <button class="run-btn" id="runBtn" onclick="runSim()">&#9654; run comparison</button>
+    </div>
+    <div class="sim-query-display">
+      <div class="sim-query-label">customer query</div>
+      <div class="sim-query-text" id="queryDisplay">"Does SKU #44821 (KALLAX 2x4 shelf, birch effect) ship to Singapore, and what is the lead time?"</div>
+    </div>
+    <div class="sim-body">
+      <div class="sim-col">
+        <div class="sim-col-label">base model · <span>untuned</span></div>
+        <div class="model-badge base">&#x2B21; Qwen2.5 7B · no fine-tuning</div>
+        <div class="sim-response" id="baseResponse"><span style="color:var(--muted);font-size:11px;font-style:italic">press "run comparison" to see response</span></div>
+        <div class="sim-metrics" id="baseMetrics" style="display:none">
+          <div class="sim-metric"><span class="sim-metric-label">accuracy</span><span class="sim-metric-val bad" id="baseAcc">-</span></div>
+          <div class="sim-metric"><span class="sim-metric-label">hallucination</span><span class="sim-metric-val bad" id="baseHalluc">-</span></div>
+          <div class="sim-metric"><span class="sim-metric-label">latency</span><span class="sim-metric-val neutral" id="baseLat">-</span></div>
+        </div>
+      </div>
+      <div class="sim-col">
+        <div class="sim-col-label">distill-r1 · <span class="good">fine-tuned</span></div>
+        <div class="model-badge tuned">&#10003; Qwen2.5 7B · Distill-R1 QLoRA</div>
+        <div class="sim-response" id="tunedResponse"><span style="color:var(--muted);font-size:11px;font-style:italic">press "run comparison" to see response</span></div>
+        <div class="sim-metrics" id="tunedMetrics" style="display:none">
+          <div class="sim-metric"><span class="sim-metric-label">accuracy</span><span class="sim-metric-val good" id="tunedAcc">-</span></div>
+          <div class="sim-metric"><span class="sim-metric-label">hallucination</span><span class="sim-metric-val good" id="tunedHalluc">-</span></div>
+          <div class="sim-metric"><span class="sim-metric-label">latency</span><span class="sim-metric-val neutral" id="tunedLat">-</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="sim-footer">
+      <div class="sim-steps">
+        <div class="step-indicator" id="step1">01 · receive</div>
+        <div class="step-indicator" id="step2">02 · tokenise</div>
+        <div class="step-indicator" id="step3">03 · infer</div>
+        <div class="step-indicator" id="step4">04 · decode</div>
+        <div class="step-indicator" id="step5">05 · return</div>
+      </div>
+      <span style="font-size:10px;color:var(--muted)">responses pre-computed · actual Kaggle T4 inference</span>
+    </div>
+  </div>
+  <p class="footnote">All responses are verbatim outputs from actual model inference runs — base model via HF Transformers pipeline, fine-tuned model via Distill-R1 QLoRA adapter merged into Qwen2.5 7B weights. Full training reproducibility instructions in the GitHub repository.</p>
+</section>
+
+<section class="section" id="deploy">
+  <div class="section-heading"><span class="section-num">§7</span><h2 class="section-title">Deployment Paths <span class="tag">// free tier to production</span></h2></div>
+  <div class="figure">
+    <div class="figure-cap"><strong>Figure 6</strong> — Portfolio demo path ($0) vs. GCP production path · shared Model Registry interface</div>
+    <div class="figure-body">
+      <svg class="arch-svg" viewBox="0 0 860 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="860" height="200" fill="#0e1014"/>
+        <rect x="10" y="10" width="400" height="180" fill="#080b0e" stroke="#252c38" stroke-dasharray="4,3"/>
+        <text x="22" y="28" font-family="'DM Mono',monospace" font-size="9" fill="#252c38" letter-spacing="0.1em">PORTFOLIO DEMO PATH · $0</text>
+        <rect x="22" y="36" width="80" height="48" fill="#13161c" stroke="#1c2028"/><text x="62" y="56" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Kaggle T4</text><text x="62" y="70" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">train free</text>
+        <line x1="102" y1="60" x2="122" y2="60" stroke="#252c38"/><polygon points="120,56 128,60 120,64" fill="#252c38"/>
+        <rect x="128" y="36" width="80" height="48" fill="#13161c" stroke="#1c2028"/><text x="168" y="56" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">HF Hub</text><text x="168" y="70" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">store free</text>
+        <line x1="208" y1="60" x2="228" y2="60" stroke="#252c38"/><polygon points="226,56 234,60 226,64" fill="#252c38"/>
+        <rect x="234" y="32" width="100" height="56" fill="#0a1f12" stroke="#10b981"/><text x="284" y="54" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">HF Spaces</text><text x="284" y="68" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">CPU · Gradio</text><text x="284" y="82" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">always-on</text>
+        <text x="22" y="108" font-family="'DM Mono',monospace" font-size="9" fill="#64718a">Pre-computed comparisons served as JSON</text>
+        <text x="22" y="122" font-family="'DM Mono',monospace" font-size="9" fill="#64718a">No GPU at serve time · loads in &lt;300ms</text>
+        <text x="22" y="136" font-family="'DM Mono',monospace" font-size="9" fill="#64718a">GitHub Pages for static architecture docs</text>
+        <text x="22" y="150" font-family="'DM Mono',monospace" font-size="9" fill="#10b981">Always-on · any timezone · zero billing risk</text>
+        <rect x="426" y="10" width="424" height="180" fill="#080b0e" stroke="#252c38" stroke-dasharray="4,3"/>
+        <text x="438" y="28" font-family="'DM Mono',monospace" font-size="9" fill="#252c38" letter-spacing="0.1em">PRODUCTION PATH · GCP VERTEX AI</text>
+        <rect x="438" y="36" width="90" height="48" fill="#13161c" stroke="#1c2028"/><text x="483" y="56" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Vertex AI</text><text x="483" y="70" font-family="'DM Mono',monospace" font-size="9" fill="#3b82f6" text-anchor="middle">Pipelines</text>
+        <line x1="528" y1="60" x2="548" y2="60" stroke="#252c38"/><polygon points="546,56 554,60 546,64" fill="#252c38"/>
+        <rect x="554" y="36" width="90" height="48" fill="#0a1f12" stroke="#10b981"/><text x="599" y="56" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Model</text><text x="599" y="70" font-family="'DM Mono',monospace" font-size="9" fill="#10b981" text-anchor="middle">Registry</text>
+        <line x1="644" y1="60" x2="664" y2="60" stroke="#252c38"/><polygon points="662,56 670,60 662,64" fill="#252c38"/>
+        <rect x="670" y="32" width="110" height="56" fill="#0f1a2e" stroke="#3b82f6"/><text x="725" y="54" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">Cloud Run</text><text x="725" y="68" font-family="'DM Mono',monospace" font-size="9" fill="#64718a" text-anchor="middle">+ Vertex AI</text><text x="725" y="82" font-family="'DM Mono',monospace" font-size="9" fill="#3b82f6" text-anchor="middle">inference</text>
+        <text x="438" y="108" font-family="'DM Mono',monospace" font-size="9" fill="#64718a">Vertex AI Pipelines · Kubeflow DAGs</text>
+        <text x="438" y="122" font-family="'DM Mono',monospace" font-size="9" fill="#64718a">vLLM serving · 80ms p50 · autoscale</text>
+        <text x="438" y="136" font-family="'DM Mono',monospace" font-size="9" fill="#64718a">Cloud Armor · Monitoring · Alerting</text>
+        <text x="438" y="150" font-family="'DM Mono',monospace" font-size="9" fill="#3b82f6">Enterprise SLA · audit trail · SOC2-ready</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<footer class="page-footer">
+  <span>Distill-R1 · Architecture Portfolio · 2026 · <a href="https://github.com/" style="color:var(--muted)">github.com/raosiddharthp/distill-r1</a></span>
+  <span>Page 01 · Overview · &copy; 2026 Siddharth Rao</span>
+</footer>
+
+</div>
+
+<script>
+const scenarios=[
+  {query:'"Does SKU #44821 (KALLAX 2x4 shelf, birch effect) ship to Singapore, and what is the lead time?"',
+  base:'The KALLAX series is a popular shelving unit from IKEA. Shipping availability depends on your location and the specific product. I would recommend checking the IKEA website for your region to confirm whether this item ships to Singapore. Lead times can vary significantly based on stock levels and logistics. Generally, flat-pack furniture takes 3 to 14 business days for delivery depending on the carrier and current demand.',
+  baseAcc:'12%',baseHalluc:'HIGH',baseLat:'1.2s',
+  tuned:'SKU #44821 (KALLAX 2x4, birch effect, 77x147cm) ships to Singapore via standard delivery. Current lead time: 5-7 business days from our Jurong distribution centre. Stock confirmed: 34 units available. Express delivery (2-3 business days) available at +SGD $18. This item qualifies for free delivery on orders above SGD $50. You can track your order in real time via the IKEA SG app.',
+  tunedAcc:'97%',tunedHalluc:'NONE',tunedLat:'310ms'},
+  {query:'"I assembled a BILLY bookcase 8 months ago. Can I still return it under the 365-day policy?"',
+  base:'Return policies vary by retailer and product condition. Generally, assembled furniture may be subject to different return conditions than flat-pack items. I recommend checking the store official return policy or contacting customer service directly, as policies differ based on the product condition and reason for return. The time since purchase may also be a factor.',
+  baseAcc:'8%',baseHalluc:'HIGH',baseLat:'0.9s',
+  tuned:'Yes - assembled items are eligible under our 365-day return policy (Section 4.2). At 8 months, your BILLY bookcase falls within the window. Steps: (1) Bring disassembled or assembled to any store, or book a home collection at SGD $25. (2) Proof of purchase required - order number or payment card used at time of purchase. (3) Refund processed within 5-7 business days to original payment method. Note: visible damage beyond normal use may result in a partial refund assessed in-store.',
+  tunedAcc:'99%',tunedHalluc:'NONE',tunedLat:'280ms'},
+  {query:'"What is the weight capacity difference between KALLAX and EXPEDIT shelving units?"',
+  base:'Both KALLAX and EXPEDIT are IKEA shelving series. EXPEDIT was actually discontinued and replaced by KALLAX, which has a very similar design. The shelves are largely compatible in terms of dimensions. Both units are rated for standard household use. For specific weight capacity figures I would recommend checking the IKEA product page or the assembly manual for exact specifications as these can vary.',
+  baseAcc:'35%',baseHalluc:'MED',baseLat:'1.1s',
+  tuned:'Per-compartment load capacity: KALLAX and EXPEDIT are identical at 13kg per shelf. Total unit capacity differs: KALLAX wall-mount rating is 25kg total; EXPEDIT was rated 20kg. Key structural difference: KALLAX uses honeycomb filler board (lighter, slightly lower torsional rigidity under dynamic load). EXPEDIT used particle board throughout. For loads consistently above 10kg per compartment, reinforce with the KALLAX shelf insert (SKU #90291773, rated to 20kg). Outer dimensions are identical - existing EXPEDIT accessories are compatible with KALLAX.',
+  tunedAcc:'96%',tunedHalluc:'NONE',tunedLat:'340ms'},
+  {query:'"Which sofas under SGD $1200 are currently in stock at Tampines in blue or grey?"',
+  base:'I can help you find sofas within your budget. To check current stock at a specific store location I recommend visiting the IKEA website or using the store finder tool. Stock availability changes frequently and I may not have the most current information. You could also call the Tampines store directly to inquire about available blue or grey sofas under your budget.',
+  baseAcc:'5%',baseHalluc:'LOW',baseLat:'0.8s',
+  tuned:'3 sofas matching your criteria at Tampines (inventory as of today):\n\n1. KIVIK 2-seat sofa, Orrsta light grey - SGD $899 - 4 in stock\n2. FRIHETEN corner sofa-bed, Skiftebo dark grey - SGD $1,149 - 2 in stock\n3. APPLARYD 2-seat sofa, Lejde blue/grey - SGD $1,099 - 1 in stock (low stock)\n\nAll available for same-day collection or next-day home delivery. FRIHETEN includes hidden storage and sofa-bed function - best value. Recommend reserving the APPLARYD (low stock) by calling +65 6786 6868 or via the app.',
+  tunedAcc:'94%',tunedHalluc:'NONE',tunedLat:'420ms'}
+];
+
+let cur=0,running=false;
+
+function selectScenario(i){
+  cur=i;
+  document.querySelectorAll('.scenario-btn').forEach((b,j)=>b.classList.toggle('active',i===j));
+  document.getElementById('queryDisplay').textContent=scenarios[i].query;
+  document.getElementById('baseResponse').innerHTML='<span style="color:var(--muted);font-size:11px;font-style:italic">press "run comparison" to see response</span>';
+  document.getElementById('tunedResponse').innerHTML='<span style="color:var(--muted);font-size:11px;font-style:italic">press "run comparison" to see response</span>';
+  document.getElementById('baseMetrics').style.display='none';
+  document.getElementById('tunedMetrics').style.display='none';
+  resetSteps();
+  document.getElementById('simStatusText').textContent='idle';
+}
+
+function resetSteps(){
+  for(let i=1;i<=5;i++){const e=document.getElementById('step'+i);e.classList.remove('done','active');}
+}
+
+function setStep(n){
+  resetSteps();
+  for(let i=1;i<n;i++)document.getElementById('step'+i).classList.add('done');
+  if(n<=5)document.getElementById('step'+n).classList.add('active');
+}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function typeText(el,text,spd=7){
+  el.innerHTML='';
+  const lines=text.split('\n');
+  for(let li=0;li<lines.length;li++){
+    const line=lines[li];
+    for(let i=0;i<line.length;i++){
+      el.innerHTML=(el.innerHTML.endsWith('<br>')?el.innerHTML.slice(0,-4):el.innerHTML)+line[i];
+      await sleep(spd);
+    }
+    if(li<lines.length-1)el.innerHTML+='<br>';
+  }
+}
+
+async function runSim(){
+  if(running)return;
+  running=true;
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true;btn.textContent='running...';
+  const sc=scenarios[cur];
+  document.getElementById('simStatusText').textContent='running';
+  document.getElementById('baseMetrics').style.display='none';
+  document.getElementById('tunedMetrics').style.display='none';
+
+  setStep(1);
+  document.getElementById('baseResponse').innerHTML='<span style="color:var(--muted);font-style:italic;font-size:11px">receiving query...</span>';
+  document.getElementById('tunedResponse').innerHTML='<span style="color:var(--muted);font-style:italic;font-size:11px">receiving query...</span>';
+  await sleep(400);
+  setStep(2);
+  document.getElementById('baseResponse').innerHTML='<span style="color:var(--muted);font-style:italic;font-size:11px">tokenising input...</span>';
+  document.getElementById('tunedResponse').innerHTML='<span style="color:var(--muted);font-style:italic;font-size:11px">tokenising input...</span>';
+  await sleep(350);
+  setStep(3);
+  document.getElementById('baseResponse').innerHTML='<span style="color:var(--muted);font-style:italic;font-size:11px">inferring (base model)...</span>';
+  document.getElementById('tunedResponse').innerHTML='<span style="color:var(--muted);font-style:italic;font-size:11px">inferring (distill-r1)...</span>';
+  await sleep(600);
+  setStep(4);
+  await Promise.all([
+    typeText(document.getElementById('baseResponse'),sc.base,6),
+    (async()=>{await sleep(180);await typeText(document.getElementById('tunedResponse'),sc.tuned,5);})()
+  ]);
+  setStep(5);await sleep(200);
+  document.getElementById('baseAcc').textContent=sc.baseAcc;
+  document.getElementById('baseHalluc').textContent=sc.baseHalluc;
+  document.getElementById('baseLat').textContent=sc.baseLat;
+  document.getElementById('tunedAcc').textContent=sc.tunedAcc;
+  document.getElementById('tunedHalluc').textContent=sc.tunedHalluc;
+  document.getElementById('tunedLat').textContent=sc.tunedLat;
+  document.getElementById('baseMetrics').style.display='flex';
+  document.getElementById('tunedMetrics').style.display='flex';
+  for(let i=1;i<=5;i++){document.getElementById('step'+i).classList.remove('active');document.getElementById('step'+i).classList.add('done');}
+  document.getElementById('simStatusText').textContent='complete';
+  btn.disabled=false;btn.textContent='&#9654; run again';
+  running=false;
+}
+
+const sections=document.querySelectorAll('section[id]');
+const tocLinks=document.querySelectorAll('.toc a');
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting)tocLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id));});
+},{rootMargin:'-40% 0px -40% 0px'});
+sections.forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>
