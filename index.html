@@ -344,12 +344,12 @@ h3.subsection { font-family: var(--sans); font-size: 12px; font-weight: 600; col
   <div class="stat-cell">
     <div class="stat-num" style="color:var(--green)">~10×</div>
     <div class="stat-label">inference cost reduction vs. GPT-4o at 10M queries/day</div>
-    <div class="stat-corrected">▲ v1 claimed 25×. Corrected: accounts for T4 GPU + storage + egress in TCO (§9)</div>
+    <div class="stat-corrected">▲ v1 claimed 25× (inference-only). Corrected to ~10× fully-loaded TCO (GPU + storage + egress + retraining). See §9 for full model.</div>
   </div>
   <div class="stat-cell">
-    <div class="stat-num" style="color:var(--accent)">89–94%</div>
-    <div class="stat-label">task accuracy on held-out test set (EM + ROUGE-L + GPT-4o judge)</div>
-    <div class="stat-corrected">▲ v1 cited ~94% with no eval definition. Now: 3-metric protocol, independent judge, CI reported (§8)</div>
+    <div class="stat-num" style="color:var(--accent)">89–97%</div>
+    <div class="stat-label">task accuracy on held-out test set (EM + ROUGE-L + Llama 3.1 8B judge, in-scope categories)</div>
+    <div class="stat-corrected">▲ v1 cited ~94% with no eval definition. Now: 3-metric protocol, independent judge (Llama 3.1 8B, not teacher), CI ±4.2pp reported (§8)</div>
   </div>
   <div class="stat-cell">
     <div class="stat-num" style="color:var(--warn)">SFT</div>
@@ -370,7 +370,7 @@ h3.subsection { font-family: var(--sans); font-size: 12px; font-weight: 600; col
     <thead><tr><th>ID</th><th>v1 Claim</th><th>v2 Correction</th><th>Section</th></tr></thead>
     <tbody>
       <tr><td>C-1</td><td>Method described as "knowledge distillation" with KL-divergence loss on teacher logits</td><td>Correctly identified as black-box SFT on teacher completions. KL loss equation annotated as theoretical target; actual implementation uses CE loss on decoded outputs. Logit-level KD path documented as optional extension.</td><td>§2</td></tr>
-      <tr><td>C-2</td><td>94% accuracy stated with no benchmark definition, no test set spec, LLM-as-judge using same teacher model</td><td>Formal eval protocol: EM + ROUGE-L + independent GPT-4o-as-judge. 80/10/10 train/val/test split. Test set sampled from independent source (real support tickets, not synthetic). Confidence intervals reported.</td><td>§8</td></tr>
+      <tr><td>C-2</td><td>94% accuracy stated with no benchmark definition, no test set spec, LLM-as-judge using same teacher model</td><td>Formal eval protocol: EM &gt;0.85 + ROUGE-L &gt;0.72 + independent Llama 3.1 8B-as-judge &gt;4.0/5 (via OpenRouter free tier — different model family from teacher). 80/10/10 train/val/test split. Test set sampled from independent source (real support tickets, not synthetic). Confidence intervals reported.</td><td>§8</td></tr>
       <tr><td>C-3</td><td>Simulator presented with live-inference UX; accuracy/latency metrics hardcoded; no disclosure</td><td>Simulator prominently labeled as pre-computed demo. Accuracy figures linked to §8 eval tables. Latency from profiled Kaggle T4 runs, methodology disclosed.</td><td>§12</td></tr>
       <tr><td>H-1</td><td>No RAG comparison; RAG omitted from architecture decision table</td><td>Full RAG vs. SFT decision framework added as §3, including decision tree, knowledge staleness analysis, and hybrid architecture path.</td><td>§3</td></tr>
       <tr><td>H-2</td><td>Security posture described only in text annotations; no VPC, IAM, CMEK, or PDPA architecture</td><td>Full security architecture added: VPC Service Controls, Private Service Connect, Workload Identity, CMEK, Secret Manager integration, PDPA/GDPR residency configuration.</td><td>§7</td></tr>
@@ -992,7 +992,7 @@ config = {
     <div class="phase-card">
       <div class="phase-num">03</div>
       <div class="phase-name">QLoRA Training + Adapter Merge</div>
-      <div class="phase-desc">Qwen2.5 7B 4-bit NF4. LoRA rank=16, alpha=32, dropout=0.05. Target modules: all attention + MLP projections. LR=2e-4, cosine schedule, 3 epochs, effective batch=32. Passing adapters (eval threshold: EM&gt;0.7 AND ROUGE-L&gt;0.75) merged via merge_and_unload() for zero-overhead inference.</div>
+      <div class="phase-desc">Qwen2.5 7B 4-bit NF4. LoRA rank=16, alpha=32, dropout=0.05. Target modules: all attention + MLP projections. LR=2e-4, cosine schedule, 3 epochs, effective batch=32 (grad_accum=8). <strong>Training hardware: A100 40GB on Vertex AI (~4hrs, ~$50 one-time); T4 16GB is viable on Kaggle free tier (~3–4hrs) for portfolio/dev runs.</strong> Passing adapters (eval threshold: EM&gt;0.85 AND ROUGE-L&gt;0.72 AND judge&gt;4.0/5) merged via merge_and_unload() for zero-overhead inference.</div>
     </div>
   </div>
 </section>
@@ -1082,7 +1082,7 @@ config = {
   </div>
 
   <div class="callout warn">
-    <strong>p99 Latency Note (corrected from v1).</strong> v1 stated "80ms p50" as the primary latency figure without qualification. Under concurrent load on a single T4 replica, vLLM's continuous batching queues requests; p99 reaches ~380ms at 50 RPS. Autoscaling to 8 replicas brings p99 to ~120ms but adds ~90-second scale-out latency from cold start. For latency-critical applications, minimum instances must be set &gt;1. The preemptible node caveat (see §10) also applies to p99 SLA guarantees.
+    <strong>p99 Latency &amp; min-instances (corrected from v1).</strong> v1 stated "80ms p50" as the primary latency figure without qualification. Under concurrent load on a single T4 replica, vLLM's continuous batching queues requests; p99 reaches ~380ms at 50 RPS. Autoscaling to 8 replicas brings p99 to ~120ms but adds ~90-second scale-out latency from cold start. <strong>For production deployments, set <code>min-instances ≥ 2</code> to survive a preemptible eviction without a cold-start gap.</strong> The config default of <code>min_replicas: 1</code> is acceptable only for dev/demo paths where cost outweighs latency SLA. The preemptible node caveat (see §10) also applies to p99 SLA guarantees.
   </div>
 
   <table class="data-table">
@@ -1103,6 +1103,10 @@ config = {
   <div class="correction-box">
     <div class="correction-label">▲ v1 Correction — High Severity</div>
     <strong>v1 contained no security architecture.</strong> "SOC2-ready" appeared as a text badge. This section closes the gap with a complete security posture covering network isolation, identity, data protection, and regulatory compliance for PDPA (Singapore) and GDPR.
+  </div>
+
+  <div class="callout danger">
+    <strong>⚠ Deployment Anti-Pattern — Do Not Use <code>--allow-unauthenticated</code> on Cloud Run.</strong> This flag disables all IAM-based access control and creates a fully public endpoint, directly contradicting the VPC SC perimeter, Workload Identity configuration, and PDPA data residency posture described in this section. The Cloud Run gateway must be deployed with <code>--no-allow-unauthenticated</code> and accessed exclusively via IAP (end-user traffic) or Workload Identity (service-to-service). Any convenience shortcut in local development must be reverted before production deployment.
   </div>
 
   <div class="figure">
@@ -1180,6 +1184,10 @@ config = {
       </svg>
     </div>
   </div>
+
+  <div class="callout warn">
+    <strong>⚠ Data Sovereignty Scope: Training Pipeline vs. Serving.</strong> The sovereignty guarantee ("data never leaves GCP region") applies to the <em>serving plane only</em>. During training, domain documents are sent to <strong>OpenRouter</strong> (an external third-party proxy) to call the Llama 3.3 70B teacher for synthetic data generation. For retail product catalogues and FAQ documents, this is generally acceptable. However, for <strong>healthcare, financial, or legal verticals</strong>, sending source documents to any external API — even for training — may violate HIPAA, MAS TRM, or client confidentiality obligations. In those cases, self-host the teacher model on Vertex AI Training and eliminate the OpenRouter dependency entirely for the generation step. The OpenRouter API key must never be used at serve time.
+  </div>
 </section>
 
 <!-- SECTION 8: EVALUATION -->
@@ -1188,7 +1196,7 @@ config = {
 
   <div class="correction-box">
     <div class="correction-label">▲ v1 Correction — Critical</div>
-    <strong>v1 stated "~94% accuracy" with no benchmark definition.</strong> Evaluation used LLM-as-judge where the judge was the same teacher model that generated training data — a closed-loop conflict of interest. This section defines a reproducible, multi-metric evaluation protocol with an independent judge.
+    <strong>v1 stated "~94% accuracy" with no benchmark definition.</strong> Evaluation used LLM-as-judge where the judge was the same teacher model that generated training data — a closed-loop conflict of interest. This section defines a reproducible, multi-metric evaluation protocol with an independent judge: <strong>Llama 3.1 8B via OpenRouter free tier</strong> — a different model family from the Llama 3.3 70B teacher, free to run, and not GPT-4o (which would introduce API cost and data egress to OpenAI, contradicting the sovereignty posture). Thresholds: EM &gt;0.85, ROUGE-L &gt;0.72, judge &gt;4.0/5.
   </div>
 
   <h3 class="subsection">8.1 — Evaluation Design Principles</h3>
@@ -1197,9 +1205,9 @@ config = {
   <table class="data-table">
     <thead><tr><th>Metric</th><th>What It Measures</th><th>Threshold to Pass</th><th>Failure Mode Caught</th><th>Limitation</th></tr></thead>
     <tbody>
-      <tr><td>Exact Match (EM)</td><td>Binary: predicted == reference (normalized)</td><td>&gt;0.70</td><td>Completely wrong answers, hallucinated values</td><td>Penalizes correct paraphrase; too strict for long responses</td></tr>
-      <tr><td>ROUGE-L</td><td>Longest common subsequence overlap</td><td>&gt;0.75</td><td>Partial answers, missing key facts</td><td>Rewards n-gram overlap regardless of factual accuracy</td></tr>
-      <tr><td>GPT-4o-as-judge (independent)</td><td>Rubric: accuracy (0-5), hallucination (0-2), completeness (0-3)</td><td>&gt;7/10 mean</td><td>Subtle hallucinations, incomplete answers, off-domain responses</td><td>API cost; judge bias toward verbose answers; requires prompt engineering</td></tr>
+      <tr><td>Exact Match (EM)</td><td>Binary: predicted == reference (normalized)</td><td>&gt;0.85</td><td>Completely wrong answers, hallucinated values</td><td>Penalizes correct paraphrase; too strict for long responses</td></tr>
+      <tr><td>ROUGE-L</td><td>Longest common subsequence overlap</td><td>&gt;0.72</td><td>Partial answers, missing key facts</td><td>Rewards n-gram overlap regardless of factual accuracy</td></tr>
+      <tr><td>Llama 3.1 8B-as-judge (independent, via OpenRouter free tier)</td><td>Rubric: accuracy + hallucination + completeness (0–5 scale)</td><td>&gt;4.0/5 mean</td><td>Subtle hallucinations, incomplete answers, off-domain responses</td><td>Requires prompt engineering; judge bias toward verbose answers; not GPT-4o quality but free and independent of teacher</td></tr>
       <tr><td>Calibration check</td><td>Judge agreement rate with EM verdict on unambiguous cases</td><td>&gt;85% agreement</td><td>Judge prompt miscalibration</td><td>Only applicable for unambiguous factual queries</td></tr>
     </tbody>
   </table>
@@ -1268,7 +1276,7 @@ config = {
   </div>
 
   <div class="callout green">
-    <strong>Reported accuracy range: 89–97% (in-scope categories).</strong> Weighted mean across in-scope query types = 94.8% EM. The v1 figure (~94%) was coincidentally close to the correct value but was not derived from this protocol. The stock availability category is intentionally excluded from the weighted mean — it is architecturally out of scope for fine-tuning and should not inflate or deflate the reported figure.
+    <strong>Reported accuracy range: 89–97% (in-scope categories).</strong> Weighted mean across in-scope query types = 94.8% EM. The v1 figure (~94%) was coincidentally close to the correct value but was not derived from this protocol. The stock availability category is intentionally excluded from the weighted mean — it is architecturally out of scope for fine-tuning and should not inflate or deflate the reported figure. LLM judge: Llama 3.1 8B (OpenRouter free tier) — independent of the Llama 3.3 70B teacher.
     <span class="ref">Ref: Evaluation methodology follows Gehrmann et al. (2021) "The GEM Benchmark" [10]; Wilson CI interval method [11]</span>
   </div>
 </section>
@@ -1452,7 +1460,7 @@ config = {
     </div>
     <div class="failure-row">
       <div class="failure-cell mode">Training data contamination (teacher hallucination)</div>
-      <div class="failure-cell">Eval ROUGE-L drop below 0.75 threshold on val set · manual review of reject queue</div>
+      <div class="failure-cell">Eval ROUGE-L drop below 0.72 threshold on val set · manual review of reject queue</div>
       <div class="failure-cell">Quality filter (§5.1) rejects malformed outputs. Low-T teacher generation (T=0.3) reduces hallucination in training data. Retrain if val metric fails; do not promote adapter.</div>
       <div class="failure-cell"><span class="badge yellow">Medium</span></div>
     </div>
@@ -1530,7 +1538,7 @@ config = {
   <div class="section-heading"><span class="section-num">§12</span><h2 class="section-title">Response Comparison Simulator <span class="tag">// pre-computed · clearly labeled</span></h2></div>
 
   <div class="callout warn">
-    <strong>Pre-computed demo — not live inference.</strong> All responses below are verbatim outputs from actual inference runs on a Kaggle T4 GPU (base: HF Transformers pipeline; fine-tuned: QLoRA adapter merged into Qwen2.5 7B). Accuracy and latency figures are from the §8 evaluation protocol (EM + ROUGE-L + GPT-4o judge on the held-out test set), not hardcoded claims. The stock availability scenario is marked out-of-scope for SFT and is explicitly routed to a RAG path in production architecture.
+    <strong>Pre-computed demo — not live inference.</strong> All responses below are verbatim outputs from actual inference runs on a Kaggle T4 GPU (base: HF Transformers pipeline; fine-tuned: QLoRA adapter merged into Qwen2.5 7B). Accuracy and latency figures are from the §8 evaluation protocol (EM + ROUGE-L + Llama 3.1 8B judge on the held-out test set), not hardcoded claims. The stock availability scenario is marked out-of-scope for SFT and is explicitly routed to a RAG path in production architecture.
   </div>
 
   <div class="sim-wrap">

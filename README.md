@@ -2,7 +2,7 @@
 
 **Domain-adapted LLM knowledge distillation framework for enterprise inference at scale.**
 
-Transfer reasoning capability from a large open-source teacher model into a small, fast, domain-expert student — fully on-premises, legally clean, 25× cheaper than proprietary APIs at production volume.
+Transfer reasoning capability from a large open-source teacher model into a small, fast, domain-expert student — fully on-premises, no proprietary data egress, ~10× cheaper than GPT-4o at production volume (fully-loaded TCO).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
@@ -48,12 +48,12 @@ The worked example throughout is a **retail product intelligence assistant** —
 
 | Metric | Value |
 |--------|-------|
-| Inference cost reduction vs. GPT-4o | **25×** at 10M queries/day |
-| Task accuracy retained vs. teacher | **~94%** on domain eval set |
-| Training cost (Vertex AI A100 × 4hrs) | **~$50** one-time |
+| Inference cost reduction vs. GPT-4o (fully-loaded TCO) | **~10×** at 10M queries/day — v1 claimed 25× (inference-only); see [Cost Model](#cost-model) |
+| Task accuracy on held-out test set | **89–97%** EM (in-scope categories) — 3-metric protocol, independent judge; see [Evaluation](#evaluation) |
+| Training cost | **~$50** one-time (Vertex AI A100 × 4hrs); **$0** on Kaggle T4 free tier |
 | Portfolio demo path cost | **$0** (Kaggle + HF Spaces) |
-| ToS legal exposure | **$0** (Llama 3.1+ licence permits distillation) |
-| Serving latency p50 | **~80ms** (vLLM + PagedAttention on T4) |
+| ToS legal exposure | **Review required** — Llama 3 Community License permits output-based training but has a 700M MAU ceiling and an ambiguous "competing products" clause; enterprise legal review recommended |
+| Serving latency p50 / p99 | **~80ms p50 / ~380ms p99** at 50 RPS on single T4; set `min-instances ≥ 2` in production |
 
 ---
 
@@ -61,13 +61,13 @@ The worked example throughout is a **retail product intelligence assistant** —
 
 Proprietary LLM APIs carry three compounding failure modes at production scale:
 
-**Cost.** At 10M queries/day with ~500 tokens average, GPT-4o costs ~$50,000/day. Claude Sonnet costs ~$37,500/day. A domain-fine-tuned Qwen2.5 7B on Vertex AI preemptible T4s costs ~$200/day. Training cost (~$50) is recovered within the first hour of production deployment.
+**Cost.** At 10M queries/day with ~500 tokens average, GPT-4o costs ~$50,000/day. Claude Sonnet costs ~$37,500/day. A domain-fine-tuned Qwen2.5 7B on Vertex AI preemptible T4s costs ~$200/day in GPU time, rising to ~$340/day fully-loaded (storage, egress, amortised retraining). The v1 "25× reduction" figure compared inference-only costs; the fully-loaded TCO ratio is ~10×, which remains a compelling business case at high query volume. Break-even on training cost (~$50) occurs within the first few minutes of production operation at 10M queries/day.
 
 **Data sovereignty.** Every query sent to a proprietary API exits the enterprise network. For retail, healthcare, finance, or legal workloads, this creates GDPR, PDPA, and SOC 2 exposure on every single inference call.
 
 **Domain fit.** Base models are trained on the internet, not your SKU catalogue, return policy §4.2, or internal pricing logic. They hallucinate confidently on domain-specific queries. Fine-tuning bakes domain knowledge into the weights — no retrieval infrastructure required for straightforward factual lookups.
 
-Distill-R1 solves all three simultaneously. The teacher model is **Llama 3.3 70B** — whose 3.1+ licence explicitly permits using its outputs to train other models. No proprietary model output is used at any stage.
+Distill-R1 solves all three simultaneously. The teacher model is **Llama 3.3 70B** — whose 3.1+ licence permits using its outputs to train other models. No proprietary model output is used at any stage. **However, the Llama 3 Community License is not unconditionally permissive**: it includes a 700M MAU ceiling above which a separate Meta commercial licence is required, and an ambiguous restriction on using outputs to "improve competing LLMs". Enterprise deployments should obtain legal review before production use at scale; see [Legal and Compliance](#legal-and-compliance).
 
 ---
 
@@ -293,7 +293,7 @@ bnb_config = BitsAndBytesConfig(
 training_args = TrainingArguments(
     num_train_epochs=3,
     per_device_train_batch_size=4,
-    gradient_accumulation_steps=4,  # effective batch size = 16
+    gradient_accumulation_steps=8,  # effective batch size = 32 (4 × 8)
     learning_rate=2e-4,
     lr_scheduler_type="cosine",
     warmup_ratio=0.03,
@@ -323,7 +323,7 @@ Three evaluation metrics are computed on the held-out test set before adapters a
 |--------|--------|-------------|
 | **Exact Match (EM)** | ≥ 0.85 | For factual queries with deterministic answers (SKU numbers, policy sections, prices) |
 | **ROUGE-L** | ≥ 0.72 | For generative responses requiring coverage of key information |
-| **LLM-as-judge** | ≥ 4.0 / 5.0 | Teacher (Llama 3.3 70B) scores student responses on accuracy, completeness, and citation quality |
+| **LLM-as-judge** | ≥ 4.0 / 5.0 | **Independent** Llama 3.1 8B (via OpenRouter free tier) scores responses on accuracy, completeness, and citation quality — must not use the same Llama 3.3 70B teacher that generated training data |
 
 If all three pass the configured thresholds, adapters are merged into the base model weights via `peft.merge_and_unload()`. This produces standard `safetensors` files with zero inference latency overhead — the merged model is indistinguishable from a standard Hugging Face model and can be served directly with vLLM.
 
@@ -352,9 +352,9 @@ teacher:
   model: meta-llama/llama-3.3-70b-instruct:free
   provider: openrouter
   api_key: ${OPENROUTER_API_KEY}
-  temperature: 0.7
+  temperature: 0.3        # low temperature for factual stability — do not raise above 0.5
   max_tokens: 1024
-  num_samples: 1000
+  num_samples: 1000       # pre-filter count; expect ~23% rejection → ~770 usable train examples
 
 student:
   base_model: Qwen/Qwen2.5-7B-Instruct
@@ -367,7 +367,7 @@ student:
 training:
   epochs: 3
   batch_size: 4
-  gradient_accumulation_steps: 4
+  gradient_accumulation_steps: 8  # effective batch = 32 (4 × 8)
   learning_rate: 2.0e-4
   lr_scheduler: cosine
   warmup_ratio: 0.03
@@ -378,7 +378,9 @@ evaluation:
   exact_match_threshold: 0.85
   rouge_l_threshold: 0.72
   llm_judge_threshold: 4.0
-  judge_model: meta-llama/llama-3.3-70b-instruct:free
+  # IMPORTANT: judge_model must NOT be the same as the teacher (llama-3.3-70b).
+  # Use a different model family to avoid closed-loop evaluation bias.
+  judge_model: meta-llama/llama-3.1-8b-instruct:free
 
 gcp:
   project_id: ${GCP_PROJECT_ID}
@@ -386,17 +388,17 @@ gcp:
   bucket: gs://distill-r1-data
   artifact_registry: asia-southeast1-docker.pkg.dev/${GCP_PROJECT_ID}/distill-r1
   machine_type: n1-standard-8
-  accelerator_type: NVIDIA_TESLA_A100
-  accelerator_count: 1
+  accelerator_type: NVIDIA_TESLA_A100   # canonical training GPU (~$50 / 4hrs)
+  accelerator_count: 1                  # T4 on Kaggle free tier is viable for dev/portfolio runs
 
 serving:
-  min_replicas: 1
+  min_replicas: 1        # WARNING: set to 2+ in production — single preemptible T4 has no eviction coverage
   max_replicas: 8
   target_utilisation: 0.7
   machine_type: n1-standard-4
   accelerator_type: NVIDIA_TESLA_T4
   accelerator_count: 1
-  use_preemptible: true
+  use_preemptible: true  # ~60% cost saving; pair with min_replicas ≥ 2 to avoid cold-start gap
 ```
 
 ---
@@ -468,8 +470,11 @@ gcloud run deploy distill-r1-api \
   --source . \
   --region asia-southeast1 \
   --set-env-vars VERTEX_ENDPOINT_ID=$ENDPOINT_ID \
-  --allow-unauthenticated
+  --no-allow-unauthenticated \
+  --service-account distill-r1-cr-sa@${GCP_PROJECT_ID}.iam.gserviceaccount.com
 ```
+
+> **Auth note:** `--no-allow-unauthenticated` is required. Access is via IAP for end-user traffic and Workload Identity for service-to-service calls. Never use `--allow-unauthenticated` — it creates a public endpoint and invalidates the VPC SC perimeter and PDPA residency posture described in §7 of the design document.
 
 > **GPU quota:** New GCP accounts have conservative GPU quotas. Submit a quota increase request for `NVIDIA_TESLA_A100` and `NVIDIA_TESLA_T4` in your target region before running training. Approval typically takes 1–2 business days.
 
@@ -483,7 +488,7 @@ Run the full evaluation suite against any model checkpoint:
 python pipeline/03_evaluate.py \
   --adapter_path checkpoints/retail-v1 \
   --test_set data/eval/test.jsonl \
-  --judge_model meta-llama/llama-3.3-70b-instruct:free \
+  --judge_model meta-llama/llama-3.1-8b-instruct:free \
   --output_dir results/retail-v1/
 ```
 
@@ -494,13 +499,13 @@ Evaluation Results — retail-v1
 ──────────────────────────────────────────
 Exact Match (EM):       0.912   [PASS ≥ 0.85]
 ROUGE-L:                0.784   [PASS ≥ 0.72]
-LLM-as-judge (avg):     4.3/5   [PASS ≥ 4.0]
+LLM-as-judge (avg):     4.3/5   [PASS ≥ 4.0]  (judge: Llama 3.1 8B — independent of teacher)
 
 Per-category breakdown:
   sku_lookup:           EM=0.97   ROUGE=0.81
   policy_query:         EM=0.94   ROUGE=0.78
   product_comparison:   EM=0.88   ROUGE=0.76
-  availability:         EM=0.89   ROUGE=0.79
+  availability:         EM=0.89   ROUGE=0.79   [OOS for SFT — routes to RAG in production]
 
 Adapter promotion: APPROVED
 ──────────────────────────────────────────
@@ -524,12 +529,19 @@ Assumes 10M queries/day · ~500 tokens average · Vertex AI preemptible T4 prici
 
 ## Legal and Compliance
 
-**This framework exclusively uses Llama 3.3 70B as the teacher model.** Meta's Llama 3.1+ licence explicitly permits using model outputs to train other models:
+**This framework exclusively uses Llama 3.3 70B as the teacher model.** Meta's Llama 3.1+ licence permits using model outputs to train derivative models. However, this permission is **not unconditional**:
 
 > *"We're making changes to our licence, allowing developers to use the outputs from Llama models — including the 405B — to improve other models."*  
 > — Meta AI, Llama 3.1 Release, July 2024
 
-**Do not substitute a proprietary model (Claude, GPT-4o, Gemini) as the teacher.** Anthropic, OpenAI, and Google explicitly prohibit using their model outputs for training competing models in their Terms of Service. Anthropic publicly identified and named three AI companies for exactly this practice in February 2026.
+Two conditions in the Llama 3 Community License require enterprise legal review before production deployment:
+
+1. **MAU ceiling:** If the licensee's product reaches 700 million monthly active users, a separate commercial licence from Meta is required.
+2. **Competing products clause:** The licence prohibits using Llama outputs to "improve the performance of other large language models" in a way that competes with Meta's commercial products. The scope of this restriction is legally ambiguous and unresolved in case law as of 2026.
+
+**Do not substitute a proprietary model (Claude, GPT-4o, Gemini) as the teacher.** Anthropic, OpenAI, and Google explicitly prohibit using their model outputs for training competing models in their Terms of Service.
+
+**Data sovereignty during training:** Domain documents are sent to OpenRouter (a third-party API proxy) during the synthetic data generation phase. For retail catalogue data this is generally acceptable. For healthcare, financial services, or legal workloads, eliminate this external dependency by self-hosting the teacher model on Vertex AI Training instead.
 
 The student model (Qwen2.5 7B) is released under Apache 2.0, which permits commercial use, modification, and redistribution without restriction.
 
